@@ -24,10 +24,37 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="groups"
+        options={{
+          title: 'Groups',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.3.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="tasks"
+        options={{
+          title: 'Tasks',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="checklist" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="rewards"
+        options={{
+          title: 'Rewards',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="star.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="explore"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          href: null,
         }}
       />
     </Tabs>

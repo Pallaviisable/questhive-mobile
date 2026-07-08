@@ -69,9 +69,9 @@ export default function LoginScreen() {
 
           <PrimaryButton title="Log In" loading={loading} onPress={handleLogin} />
 
-          <Link href="/(auth)/register" style={styles.linkWrap}>
+          <Link href="/(auth)/request-access" style={styles.linkWrap}>
             <ThemedText type="link" style={styles.linkText}>
-              Don&apos;t have an account? Sign up
+              Don&apos;t have an account? Request access
             </ThemedText>
           </Link>
         </ThemedView>

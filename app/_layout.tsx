@@ -12,13 +12,10 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-// Keep the splash screen up while we check SecureStore for an existing
-// token, so the user never sees a flash of the login screen before we
-// know whether they're actually logged in.
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   useEffect(() => {
     if (!isLoading) SplashScreen.hideAsync();
@@ -26,15 +23,21 @@ function RootNavigator() {
 
   if (isLoading) return null;
 
+  const isSuperAdmin = isAuthenticated && user?.role === 'SUPER_ADMIN';
+
   return (
     <Stack>
-      <Stack.Protected guard={isAuthenticated}>
+      <Stack.Protected guard={isAuthenticated && isSuperAdmin}>
+        <Stack.Screen name="(superadmin)" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={isAuthenticated && !isSuperAdmin}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack.Protected>
       <Stack.Protected guard={!isAuthenticated}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       </Stack.Protected>
+      <Stack.Screen name="invite/[token]" options={{ headerShown: false }} />
     </Stack>
   );
 }
