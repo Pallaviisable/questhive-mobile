@@ -47,14 +47,41 @@ export default function InvitePreviewScreen() {
     );
   }
 
+  // Someone already has an account with this invite's email — the backend
+  // may have already auto-added them to the group (MEMBER invites). Either
+  // way, signing up again would fail, so send them to log in instead.
+  if (invite.alreadyRegistered) {
+    return (
+      <ThemedView style={styles.container}>
+        <ThemedText type="title" style={styles.title}>You're already in!</ThemedText>
+        <ThemedText style={styles.subtitle}>
+          {invite.message || 'You already have a QuestHive account.'}
+        </ThemedText>
+        <PrimaryButton title="Log In" onPress={() => router.replace('/(auth)/login')} />
+      </ThemedView>
+    );
+  }
+
+  const isAdminInvite = invite.type === 'ADMIN';
+
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title" style={styles.title}>You're invited!</ThemedText>
-      <ThemedText style={styles.groupName}>{invite.groupName}</ThemedText>
-      <ThemedText style={styles.subtitle}>
-        {invite.memberCount} member{invite.memberCount === 1 ? '' : 's'}
-      </ThemedText>
-      <ThemedText style={styles.description}>{invite.groupDescription}</ThemedText>
+      {isAdminInvite ? (
+        <ThemedText style={styles.description}>
+          You've been approved as a Family Admin on QuestHive. Create your account to get started.
+        </ThemedText>
+      ) : (
+        <>
+          <ThemedText style={styles.groupName}>{invite.groupName}</ThemedText>
+          <ThemedText style={styles.subtitle}>
+            {invite.memberCount} member{invite.memberCount === 1 ? '' : 's'}
+          </ThemedText>
+          {!!invite.groupDescription && (
+            <ThemedText style={styles.description}>{invite.groupDescription}</ThemedText>
+          )}
+        </>
+      )}
 
       <PrimaryButton
         title="Continue to Sign Up"

@@ -23,10 +23,11 @@ type AuthContextType = {
     isAuthenticated: boolean;
     login: (email: string, password: string) => Promise<void>;
     register: (data: {
-        name: string;
+        fullName: string;
+        username: string;
         email: string;
         password: string;
-        inviteToken?: string;
+        inviteToken: string;
     }) => Promise<{ email: string }>;
     verifyEmail: (email: string, otp: string) => Promise<void>;
     resendOtp: (email: string) => Promise<void>;
@@ -80,13 +81,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const register = async (data: {
-        name: string;
+        fullName: string;
+        username: string;
         email: string;
         password: string;
-        inviteToken?: string;
+        inviteToken: string;
     }) => {
+        // Invite-only accounts are verified=true immediately on the backend —
+        // no OTP step for this flow. User goes straight to login after this.
         await api.registerWithInvite(data);
-        // Backend sends an OTP to verify the email — no token yet until verified.
         return { email: data.email };
     };
 

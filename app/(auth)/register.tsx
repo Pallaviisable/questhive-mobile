@@ -42,12 +42,11 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       await register({
-        name: name.trim(),
+        fullName: name.trim(),
+        username: username.trim(),
         email: email.trim().toLowerCase(),
         password,
         inviteToken: token,
-        // username may need to be sent too — confirm exact field name
-        // against RegisterRequest DTO on the backend if this errors.
       });
       // Account is verified immediately per invite-only flow — no OTP step.
       // AuthProvider handles the redirect if register() also logs in;
