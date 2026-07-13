@@ -1,5 +1,6 @@
-import { ActivityIndicator, Pressable, StyleSheet, type PressableProps } from 'react-native';
+import { ActivityIndicator, StyleSheet, type PressableProps } from 'react-native';
 
+import { PressableScale } from '@/components/pressable-scale';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -16,13 +17,20 @@ export function PrimaryButton({ title, loading, variant = 'primary', disabled, s
   const isGhost = variant === 'ghost';
 
   return (
-    <Pressable
+    <PressableScale
       disabled={disabled || loading}
-      style={({ pressed }) => [
+      style={[
         styles.button,
         isGhost
           ? { backgroundColor: 'transparent' }
-          : { backgroundColor: colors.tint, opacity: pressed ? 0.85 : 1 },
+          : {
+              backgroundColor: colors.tint,
+              shadowColor: colors.tint,
+              shadowOpacity: scheme === 'dark' ? 0.35 : 0.25,
+              shadowRadius: 10,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 4,
+            },
         (disabled || loading) && !isGhost ? { opacity: 0.6 } : null,
         style as any,
       ]}
@@ -36,14 +44,14 @@ export function PrimaryButton({ title, loading, variant = 'primary', disabled, s
           {title}
         </ThemedText>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 10,
-    paddingVertical: 14,
+    borderRadius: 12,
+    paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },

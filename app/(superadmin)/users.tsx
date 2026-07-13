@@ -3,9 +3,9 @@ import { Alert, FlatList, RefreshControl, StyleSheet, TouchableOpacity } from 'r
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { getSuperAdminUsers, deactivatePlatformUser, activatePlatformUser } from '@/lib/api';
+import { getSuperAdminUsers, deactivatePlatformUser, activatePlatformUser, removePlatformUser } from '@/lib/api';
 
-type PlatformUser = { id: string; name: string; email: string; role: string; isActive: boolean };
+type PlatformUser = { id: string; fullName: string; email: string; role: string; status: 'ACTIVE' | 'DEACTIVATED' };
 
 export default function UsersScreen() {
   const [users, setUsers] = useState<PlatformUser[]>([]);
@@ -28,12 +28,29 @@ export default function UsersScreen() {
 
   const toggleActive = async (user: PlatformUser) => {
     try {
-      if (user.isActive) await deactivatePlatformUser(user.id);
+      if (user.status === 'ACTIVE') await deactivatePlatformUser(user.id);
       else await activatePlatformUser(user.id);
-      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, isActive: !u.isActive } : u)));
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, status: u.status === 'ACTIVE' ? 'DEACTIVATED' : 'ACTIVE' } : u)));
     } catch {
       Alert.alert('Action failed', 'Could not update this user.');
     }
+  };
+
+  const handleRemove = (user: PlatformUser) => {
+    Alert.alert('Remove user', `Remove ${user.fullName}? This cannot be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove', style: 'destructive',
+        onPress: async () => {
+          try {
+            await removePlatformUser(user.id);
+            setUsers((prev) => prev.filter((u) => u.id !== user.id));
+          } catch {
+            Alert.alert('Action failed', 'Could not remove this user.');
+          }
+        },
+      },
+    ]);
   };
 
   return (
@@ -47,13 +64,20 @@ export default function UsersScreen() {
         }
         renderItem={({ item }) => (
           <ThemedView style={styles.card}>
-            <ThemedText style={styles.name}>{item.name}</ThemedText>
-            <ThemedText style={styles.email}>{item.email} • {item.role}</ThemedText>
-            <TouchableOpacity
-              style={item.isActive ? styles.deactivateBtn : styles.activateBtn}
-              onPress={() => toggleActive(item)}>
-              <ThemedText style={styles.btnText}>{item.isActive ? 'Deactivate' : 'Activate'}</ThemedText>
-            </TouchableOpacity>
+            <ThemedText style={styles.name}>{item.fullName}</ThemedText>
+            <ThemedText style={styles.email}>{item.email} • {item.role?.replace('_', ' ')}</ThemedText>
+            {item.role !== 'SUPER_ADMIN' && (
+              <ThemedView style={styles.actions}>
+                <TouchableOpacity
+                  style={item.status === 'ACTIVE' ? styles.deactivateBtn : styles.activateBtn}
+                  onPress={() => toggleActive(item)}>
+                  <ThemedText style={styles.btnText}>{item.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.removeBtn} onPress={() => handleRemove(item)}>
+                  <ThemedText style={styles.btnText}>Remove</ThemedText>
+                </TouchableOpacity>
+              </ThemedView>
+            )}
           </ThemedView>
         )}
         ListEmptyComponent={!loading ? <ThemedText style={styles.empty}>No users found</ThemedText> : null}
@@ -68,8 +92,10 @@ const styles = StyleSheet.create({
   card: { padding: 14, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.04)', marginBottom: 10 },
   name: { fontSize: 16, fontWeight: '600' },
   email: { fontSize: 13, opacity: 0.6, marginTop: 2, marginBottom: 8 },
-  deactivateBtn: { backgroundColor: '#EF4444', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, alignSelf: 'flex-start' },
+  actions: { flexDirection: 'row', gap: 10 },
+  deactivateBtn: { backgroundColor: '#F59E0B', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, alignSelf: 'flex-start' },
   activateBtn: { backgroundColor: '#22C55E', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, alignSelf: 'flex-start' },
+  removeBtn: { backgroundColor: '#EF4444', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, alignSelf: 'flex-start' },
   btnText: { color: 'white', fontWeight: '600', fontSize: 13 },
   empty: { textAlign: 'center', marginTop: 40, opacity: 0.5 },
 });

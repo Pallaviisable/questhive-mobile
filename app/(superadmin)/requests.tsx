@@ -3,7 +3,7 @@ import { Alert, FlatList, RefreshControl, StyleSheet, TouchableOpacity } from 'r
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { getSuperAdminRequests, approveAdminRequest, rejectAdminRequest } from '@/lib/api';
+import { getAllSuperAdminRequests, approveAdminRequest, rejectAdminRequest } from '@/lib/api';
 
 type AdminRequest = { id: string; fullName: string; email: string; reason: string };
 
@@ -14,7 +14,7 @@ export default function RequestsScreen() {
 
   const loadPending = useCallback(async () => {
     try {
-      const { data } = await getSuperAdminRequests();
+      const { data } = await getAllSuperAdminRequests();
       setPending(data);
     } catch (err) {
       console.error('Failed to load pending requests', err);

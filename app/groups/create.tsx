@@ -24,7 +24,7 @@ export default function CreateGroupScreen() {
     setLoading(true);
     try {
       await createGroup({ name: name.trim(), description: description.trim(), template });
-      router.back();
+      router.replace({ pathname: '/(tabs)/groups', params: { created: '1' } });
     } catch (e: any) {
       Alert.alert('Failed', e?.response?.data?.message || 'Could not create group.');
     } finally {

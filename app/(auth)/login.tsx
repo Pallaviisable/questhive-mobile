@@ -1,14 +1,24 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 
 import { FormInput } from '@/components/form-input';
+import { PasswordInput } from '@/components/password-input';
 import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { TypingHeadline } from '@/components/typing-headline';
+import { StatStrip } from '@/components/stat-strip';
+import { Colors } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function LoginScreen() {
+  const scheme = useColorScheme() ?? 'light';
+  const colors = Colors[scheme];
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,14 +34,10 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await login(email.trim().toLowerCase(), password);
-      // AuthProvider flips isAuthenticated → root layout's Stack.Protected
-      // swaps us into (tabs) automatically, no manual navigation needed.
     } catch (e: any) {
       const status = e?.response?.status;
       const serverMessage = e?.response?.data?.message;
-
       if (status === 403 || serverMessage?.toLowerCase?.().includes('verify')) {
-        // Unverified account — send them to finish OTP verification.
         router.push({ pathname: '/(auth)/verify-email', params: { email: email.trim() } });
         return;
       }
@@ -42,38 +48,59 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         <ThemedView style={styles.container}>
-          <ThemedText type="title" style={styles.title}>
-            QuestHive
-          </ThemedText>
-          <ThemedText style={styles.subtitle}>Log in to keep your streak alive.</ThemedText>
+          {/* ThemeToggle temporarily disabled */}
 
-          <FormInput
-            placeholder="Email"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <FormInput
-            placeholder="Password"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
+          <Animated.View entering={FadeInDown.duration(450).springify()} style={styles.brandRow}>
+            <View style={[styles.logoBox, { backgroundColor: colors.tint }]}>
+              <Ionicons name="layers" size={20} color="#151718" />
+            </View>
+            <ThemedText type="defaultSemiBold" style={styles.brandName}>QuestHive</ThemedText>
+          </Animated.View>
 
-          {!!error && <ThemedText style={styles.error}>{error}</ThemedText>}
-
-          <PrimaryButton title="Log In" loading={loading} onPress={handleLogin} />
-
-          <Link href="/(auth)/request-access" style={styles.linkWrap}>
-            <ThemedText type="link" style={styles.linkText}>
-              Don&apos;t have an account? Request access
+          <Animated.View entering={FadeInDown.duration(450).delay(80).springify()}>
+            <ThemedText type="title" style={styles.title}>Sign in</ThemedText>
+            <ThemedText style={styles.subtitle}>
+              No account?{' '}
+              <Link href="/(auth)/request-access">
+                <ThemedText style={{ color: colors.tint, fontWeight: '600' }}>Request access</ThemedText>
+              </Link>
             </ThemedText>
-          </Link>
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.duration(450).delay(120).springify()} style={{ marginBottom: 20 }}>
+            <TypingHeadline />
+          </Animated.View>
+
+          <Animated.View entering={FadeInUp.duration(450).delay(160).springify()}>
+            <FormInput
+              label="Email address"
+              placeholder="you@example.com"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+            />
+
+            <View style={styles.passwordLabelRow}>
+              <ThemedText style={[styles.label, { color: colors.muted }]}>Password</ThemedText>
+              <Link href="/(auth)/forgot-password">
+                <ThemedText style={{ color: colors.tint, fontSize: 13, fontWeight: '600' }}>
+                  Forgot password?
+                </ThemedText>
+              </Link>
+            </View>
+            <PasswordInput placeholder="••••••" value={password} onChangeText={setPassword} />
+
+            {!!error && <ThemedText style={styles.error}>{error}</ThemedText>}
+
+            <PrimaryButton title="Sign in" loading={loading} onPress={handleLogin} style={styles.submitBtn} />
+          </Animated.View>
+
+          <Animated.View entering={FadeInUp.duration(450).delay(240).springify()} style={{ marginTop: 28 }}>
+            <StatStrip />
+          </Animated.View>
         </ThemedView>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -81,31 +108,20 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    gap: 4,
-  },
-  title: {
-    textAlign: 'center',
+  container: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  toggle: { position: 'absolute', top: 16, right: 20 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 28, gap: 10 },
+  logoBox: { width: 34, height: 34, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  brandName: { fontSize: 18 },
+  title: { marginBottom: 6, fontSize: 28 },
+  subtitle: { marginBottom: 26, opacity: 0.85 },
+  label: { fontSize: 13, fontWeight: '600' },
+  passwordLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 6,
   },
-  subtitle: {
-    textAlign: 'center',
-    marginBottom: 28,
-    opacity: 0.7,
-  },
-  error: {
-    color: '#DC2626',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  linkWrap: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  linkText: {
-    textAlign: 'center',
-  },
+  error: { color: '#DC2626', marginBottom: 12, textAlign: 'center' },
+  submitBtn: { marginTop: 6 },
 });

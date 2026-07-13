@@ -16,7 +16,11 @@ export default function InvitePreviewScreen() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!token) return;
+    if (!token) {
+      setError('No invite token found. Please use the link from your email.');
+      setLoading(false);
+      return;
+    }
     (async () => {
       try {
         const { data } = await validateInvite(token);
@@ -54,6 +58,11 @@ export default function InvitePreviewScreen() {
     return (
       <ThemedView style={styles.container}>
         <ThemedText type="title" style={styles.title}>You're already in!</ThemedText>
+        {!!invite.groupName && (
+          <ThemedText style={styles.subtitle}>
+            You've been added to <ThemedText style={styles.emailBoxEmail}>{invite.groupName}</ThemedText>.
+          </ThemedText>
+        )}
         <ThemedText style={styles.subtitle}>
           {invite.message || 'You already have a QuestHive account.'}
         </ThemedText>
@@ -83,10 +92,20 @@ export default function InvitePreviewScreen() {
         </>
       )}
 
+      {!!invite.email && (
+        <ThemedView style={styles.emailBox}>
+          <ThemedText style={styles.emailBoxText}>
+            📧 This invite was sent to <ThemedText style={styles.emailBoxEmail}>{invite.email}</ThemedText>
+          </ThemedText>
+        </ThemedView>
+      )}
+
       <PrimaryButton
         title="Continue to Sign Up"
         onPress={() => router.push({ pathname: '/(auth)/register', params: { token } })}
       />
+
+      <ThemedText style={styles.expiryNote}>Link expires in 48 hours · Single use only</ThemedText>
     </ThemedView>
   );
 }
@@ -97,4 +116,8 @@ const styles = StyleSheet.create({
   groupName: { fontSize: 20, fontWeight: '700' },
   subtitle: { opacity: 0.7, marginBottom: 8 },
   description: { textAlign: 'center', opacity: 0.8, marginBottom: 24 },
+  emailBox: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 16, width: '100%' },
+  emailBoxText: { fontSize: 13, opacity: 0.7, textAlign: 'center' },
+  emailBoxEmail: { fontSize: 13, fontWeight: '700', opacity: 1 },
+  expiryNote: { fontSize: 11, opacity: 0.5, marginTop: 12, textAlign: 'center' },
 });

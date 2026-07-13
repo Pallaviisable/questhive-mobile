@@ -1,4 +1,4 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -6,7 +6,9 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { FeedbackButton } from '@/components/feedback-button';
+import { View } from 'react-native';
+import { ThemeProvider, useAppTheme } from '@/contexts/theme-context';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -26,31 +28,41 @@ function RootNavigator() {
   const isSuperAdmin = isAuthenticated && user?.role === 'SUPER_ADMIN';
 
   return (
-    <Stack>
-      <Stack.Protected guard={isAuthenticated && isSuperAdmin}>
-        <Stack.Screen name="(superadmin)" options={{ headerShown: false }} />
-      </Stack.Protected>
-      <Stack.Protected guard={isAuthenticated && !isSuperAdmin}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack.Protected>
-      <Stack.Protected guard={!isAuthenticated}>
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      </Stack.Protected>
-      <Stack.Screen name="invite/[token]" options={{ headerShown: false }} />
-    </Stack>
+    <View style={{ flex: 1 }}>
+      <Stack>
+        <Stack.Protected guard={isAuthenticated && isSuperAdmin}>
+          <Stack.Screen name="(superadmin)" options={{ headerShown: false }} />
+        </Stack.Protected>
+        <Stack.Protected guard={isAuthenticated && !isSuperAdmin}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        </Stack.Protected>
+        <Stack.Protected guard={!isAuthenticated}>
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        </Stack.Protected>
+        <Stack.Screen name="invite/[token]" options={{ headerShown: false }} />
+      </Stack>
+      {isAuthenticated && !isSuperAdmin && <FeedbackButton />}
+    </View>
+  );
+}
+
+function ThemedApp() {
+  const { scheme } = useAppTheme();
+  return (
+    <NavThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <RootNavigator />
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+    </NavThemeProvider>
   );
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
-    <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <RootNavigator />
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <ThemedApp />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

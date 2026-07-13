@@ -11,8 +11,12 @@ const USER_KEY = 'qh_user';
 // response shape from Spring Boot (e.g. add role: 'FAMILY_ADMIN' | 'SUPER_ADMIN' | 'MEMBER').
 type QuestHiveUser = {
     id: string;
-    name: string;
+    fullName: string;
     email: string;
+    username?: string;
+    usernameChanged?: boolean;
+    coins?: number;
+    avatarColor?: string;
     role?: string;
     [key: string]: any;
 };
