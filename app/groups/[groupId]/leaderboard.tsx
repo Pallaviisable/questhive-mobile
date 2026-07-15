@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, View, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '@/contexts/auth-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, Spacing, Radius } from '@/constants/theme';
@@ -32,12 +33,10 @@ export default function LeaderboardScreen() {
   const [group, setGroup] = useState<any>(null);
   const [xpMap, setXpMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'LEADERBOARD' | 'HALL_OF_FAME'>('LEADERBOARD');
 
-  useEffect(() => {
-    (async () => { const stored = await AsyncStorage.getItem('user'); if (stored) setUser(JSON.parse(stored)); })();
-  }, []);
+
 
   const fetchData = useCallback(async () => {
     try {

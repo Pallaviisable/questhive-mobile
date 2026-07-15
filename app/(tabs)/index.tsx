@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnimatedProgressBar } from '@/components/animated-progress-bar';
 import { ThemedText } from '@/components/themed-text';
@@ -11,6 +13,7 @@ import { useCountUp } from '@/hooks/use-count-up';
 import { useAuth } from '@/contexts/auth-context';
 import { getGroupHealth, getMyCoins, getMyGroups, getMyTasks, getMyXP } from '@/lib/api';
 import OnboardingTour from '@/components/onboarding-tour';
+import { NotificationBell } from '@/components/notification-bell';
 
 type Task = {
   id: string;
@@ -18,8 +21,8 @@ type Task = {
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'DENIED';
   priority: string;
   category: string;
-  coinReward: number;
-  deadline: string | null;
+  coins: number;
+  dueDate: string | null;
 };
 
 type Group = {
@@ -42,10 +45,20 @@ const FRAME_CONFIG: Record<string, { color: string; label: string }> = {
   RISING:    { color: '#6b7280', label: 'Rising'    },
 };
 
+const CATEGORY_ICONS: Record<string, any> = {
+  HOME: 'home-outline',
+  FINANCE: 'wallet-outline',
+  STUDY: 'book-outline',
+  WORK: 'briefcase-outline',
+  PERSONAL: 'person-outline',
+};
+const getCategoryIcon = (category: string) => CATEGORY_ICONS[category] ?? 'checkmark-circle-outline';
+
 export default function DashboardScreen() {
   const scheme = useColorScheme() ?? 'dark';
   const colors = Colors[scheme];
-  const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { user, updateUser } = useAuth();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [groups, setGroups] = useState<GroupWithHealth[]>([]);
@@ -123,9 +136,18 @@ export default function DashboardScreen() {
     pending: tasks.filter((t) => t.status === 'PENDING').length,
     inProgress: tasks.filter((t) => t.status === 'IN_PROGRESS').length,
     completed: tasks.filter((t) => t.status === 'COMPLETED').length,
-    overdue: tasks.filter((t) => t.status !== 'COMPLETED' && t.deadline && new Date(t.deadline) < new Date()).length,
+    overdue: tasks.filter((t) => t.status !== 'COMPLETED' && t.dueDate && new Date(t.dueDate) < new Date()).length,
     myGroups: groups.length,
   };
+
+  const STAT_ITEMS = [
+    { label: 'Total Tasks', value: stats.total, color: colors.text, icon: 'list-outline' },
+    { label: 'Pending', value: stats.pending, color: colors.tint, icon: 'time-outline' },
+    { label: 'In Progress', value: stats.inProgress, color: colors.info, icon: 'sync-outline' },
+    { label: 'Completed', value: stats.completed, color: colors.success, icon: 'checkmark-circle-outline' },
+    { label: 'Overdue', value: stats.overdue, color: colors.danger, icon: 'alert-circle-outline' },
+    { label: 'My Groups', value: stats.myGroups, color: colors.purple, icon: 'people-outline' },
+  ];
 
   const recentTasks = tasks.slice(0, 5);
   const xpPercent = xpData ? Math.min(100, xpData.progressPercent) : 0;
@@ -135,7 +157,7 @@ export default function DashboardScreen() {
   return (
     <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.sm }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -145,15 +167,18 @@ export default function DashboardScreen() {
         }>
 
         <View style={styles.headerRow}>
-          <View>
-            <ThemedText style={styles.welcome}>
-              Welcome back, <ThemedText style={[styles.welcomeName, { color: colors.tint }]}>{user?.name ?? 'there'}</ThemedText>
+          <View style={{ flex: 1, marginRight: Spacing.sm }}>
+            <ThemedText style={styles.welcome} numberOfLines={1}>
+              Welcome back, <ThemedText style={[styles.welcomeName, { color: colors.tint }]}>{(user?.fullName ?? 'there').split(' ')[0]}</ThemedText>
             </ThemedText>
             <ThemedText style={[styles.date, { color: colors.textMuted }]}>{todayLabel()}</ThemedText>
           </View>
-          <View style={[styles.coinPill, { backgroundColor: colors.backgroundElevated2, borderColor: colors.border }]}>
-            <ThemedText style={[styles.coinPillValue, { color: colors.coin }]}>{animatedCoins}</ThemedText>
-            <ThemedText style={[styles.coinPillLabel, { color: colors.textMuted }]}>coins</ThemedText>
+          <View style={styles.headerRight}>
+            <NotificationBell />
+            <View style={[styles.coinPill, { backgroundColor: colors.backgroundElevated2, borderColor: colors.border }]}>
+              <ThemedText style={[styles.coinPillValue, { color: colors.coin }]}>{animatedCoins}</ThemedText>
+              <ThemedText style={[styles.coinPillLabel, { color: colors.textMuted }]}>coins</ThemedText>
+            </View>
           </View>
         </View>
 
@@ -209,12 +234,13 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.statsGrid}>
-          <StatBox label="Total Tasks" value={stats.total} color={colors.text} colors={colors} />
-          <StatBox label="Pending" value={stats.pending} color={colors.tint} colors={colors} />
-          <StatBox label="In Progress" value={stats.inProgress} color={colors.info} colors={colors} />
-          <StatBox label="Completed" value={stats.completed} color={colors.success} colors={colors} />
-          <StatBox label="Overdue" value={stats.overdue} color={colors.danger} colors={colors} />
-          <StatBox label="My Groups" value={stats.myGroups} color={colors.purple} colors={colors} />
+          {STAT_ITEMS.map((s) => (
+            <View key={s.label} style={[styles.statBox, { backgroundColor: colors.backgroundElevated, borderColor: colors.border }]}>
+              <Ionicons name={s.icon as any} size={16} color={s.color} style={{ marginBottom: 4 }} />
+              <ThemedText style={[styles.statValue, { color: s.color }]}>{s.value}</ThemedText>
+              <ThemedText style={[styles.statLabel, { color: colors.textMuted }]}>{s.label}</ThemedText>
+            </View>
+          ))}
         </View>
 
         <View style={styles.sectionHeader}>
@@ -228,7 +254,7 @@ export default function DashboardScreen() {
             <ThemedText style={[styles.empty, { color: colors.textMuted }]}>No tasks yet</ThemedText>
           )}
           {recentTasks.map((t, i) => {
-            const isOverdue = t.status !== 'COMPLETED' && t.deadline && new Date(t.deadline) < new Date();
+            const isOverdue = t.status !== 'COMPLETED' && t.dueDate && new Date(t.dueDate) < new Date();
             const dotColor = isOverdue ? colors.danger : t.status === 'COMPLETED' ? colors.success : colors.tint;
             return (
               <View
@@ -237,15 +263,17 @@ export default function DashboardScreen() {
                   styles.taskRow,
                   i < recentTasks.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
                 ]}>
-                <View style={[styles.dot, { backgroundColor: dotColor }]} />
+                <View style={[styles.taskIconCircle, { backgroundColor: `${dotColor}20` }]}>
+                  <Ionicons name={getCategoryIcon(t.category)} size={16} color={dotColor} />
+                </View>
                 <View style={{ flex: 1 }}>
                   <ThemedText style={styles.taskTitle}>{t.title}</ThemedText>
                   <ThemedText style={[styles.taskMeta, { color: colors.textMuted }]}>
                     {t.priority} · {t.category}
-                    {t.deadline ? ` · ${new Date(t.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                    {t.dueDate ? ` · ${new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
                   </ThemedText>
                 </View>
-                <ThemedText style={[styles.taskCoin, { color: colors.coin }]}>+{t.coinReward}</ThemedText>
+                <ThemedText style={[styles.taskCoin, { color: colors.coin }]}>+{t.coins}</ThemedText>
               </View>
             );
           })}
@@ -289,32 +317,29 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.quickActions}>
-          <QuickAction label="Go to Tasks →" color={colors.success} onPress={() => router.push('/(tabs)/tasks')} />
-          <QuickAction label="View Rewards →" color={colors.info} onPress={() => router.push('/(tabs)/rewards')} />
-          <QuickAction label="Browse Groups →" color={colors.tint} onPress={() => router.push('/(tabs)/groups')} />
-          <QuickAction label="Account Settings →" color={colors.purple} onPress={() => router.push('/(tabs)/profile')} />
+          <QuickAction label="Tasks" icon="checkbox-outline" color={colors.success} onPress={() => router.push('/(tabs)/tasks')} />
+          <QuickAction label="Rewards" icon="gift-outline" color={colors.info} onPress={() => router.push('/(tabs)/rewards')} />
+          <QuickAction label="Groups" icon="people-outline" color={colors.tint} onPress={() => router.push('/(tabs)/groups')} />
+          <QuickAction label="Settings" icon="settings-outline" color={colors.purple} onPress={() => router.push('/(tabs)/profile')} />
         </View>
       </ScrollView>
 
       {showTour && (
-        <OnboardingTour onComplete={() => setShowTour(false)} />
+        <OnboardingTour
+          onComplete={() => {
+            setShowTour(false);
+            updateUser({ hasSeenTour: true });
+          }}
+        />
       )}
     </ThemedView>
   );
 }
 
-function StatBox({ label, value, color, colors }: { label: string; value: number; color: string; colors: any }) {
-  return (
-    <View style={[styles.statBox, { backgroundColor: colors.backgroundElevated, borderColor: colors.border }]}>
-      <ThemedText style={[styles.statValue, { color }]}>{value}</ThemedText>
-      <ThemedText style={[styles.statLabel, { color: colors.textMuted }]}>{label}</ThemedText>
-    </View>
-  );
-}
-
-function QuickAction({ label, color, onPress }: { label: string; color: string; onPress: () => void }) {
+function QuickAction({ label, icon, color, onPress }: { label: string; icon: any; color: string; onPress: () => void }) {
   return (
     <TouchableOpacity style={[styles.quickActionBtn, { backgroundColor: color }]} onPress={onPress} activeOpacity={0.85}>
+      <Ionicons name={icon} size={16} color="#0A0A0A" style={{ marginRight: 6 }} />
       <ThemedText style={styles.quickActionText}>{label}</ThemedText>
     </TouchableOpacity>
   );
@@ -327,6 +352,7 @@ const styles = StyleSheet.create({
   welcome: { fontSize: 20, fontWeight: '700' },
   welcomeName: { fontWeight: '800' },
   date: { fontSize: 13, marginTop: 2 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 0 },
   coinPill: {
     flexDirection: 'row', alignItems: 'baseline', gap: 4,
     paddingVertical: 8, paddingHorizontal: 14, borderRadius: Radius.full, borderWidth: 1,
@@ -343,7 +369,7 @@ const styles = StyleSheet.create({
   xpSubtext: { fontSize: 11 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
   statBox: {
-    width: '31%', borderRadius: Radius.md, borderWidth: 1, paddingVertical: 14, alignItems: 'center', gap: 4,
+    width: '31%', borderRadius: Radius.md, borderWidth: 1, paddingVertical: 14, alignItems: 'center', gap: 2,
   },
   statValue: { fontSize: 22, fontWeight: '800' },
   statLabel: { fontSize: 11, textAlign: 'center' },
@@ -351,7 +377,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: '700' },
   viewAll: { fontSize: 13, fontWeight: '600' },
   taskRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: Spacing.md },
-  dot: { width: 8, height: 8, borderRadius: 4 },
+  taskIconCircle: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   taskTitle: { fontSize: 14, fontWeight: '600' },
   taskMeta: { fontSize: 11, marginTop: 2 },
   taskCoin: { fontSize: 13, fontWeight: '700' },
@@ -362,6 +388,6 @@ const styles = StyleSheet.create({
   groupMeta: { fontSize: 11, marginTop: 2 },
   groupHealthPct: { fontSize: 14, fontWeight: '800' },
   quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.md },
-  quickActionBtn: { flexGrow: 1, minWidth: '46%', paddingVertical: 12, borderRadius: Radius.md, alignItems: 'center' },
+  quickActionBtn: { flexGrow: 1, minWidth: '46%', flexDirection: 'row', paddingVertical: 12, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   quickActionText: { color: '#0A0A0A', fontWeight: '700', fontSize: 13 },
 });

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -10,6 +11,7 @@ type FeedbackType = 'BUG' | 'SUGGESTION';
 export function FeedbackButton() {
   const scheme = useColorScheme() ?? 'dark';
   const C = Colors[scheme];
+  const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<FeedbackType>('BUG');
   const [message, setMessage] = useState('');
@@ -37,7 +39,7 @@ export function FeedbackButton() {
     <>
       <TouchableOpacity
         onPress={() => setOpen(true)}
-        style={[styles.fab, { backgroundColor: C.tint }]}
+        style={[styles.fab, { backgroundColor: C.tint, bottom: insets.bottom + 72 }]}
         activeOpacity={0.85}
       >
         <ThemedText style={styles.fabText}>💬 Feedback</ThemedText>
@@ -106,7 +108,7 @@ export function FeedbackButton() {
 
 const styles = StyleSheet.create({
   fab: {
-    position: 'absolute', bottom: 28, right: 20, zIndex: 999,
+    position: 'absolute', right: 20, zIndex: 999,
     paddingVertical: 10, paddingHorizontal: 18, borderRadius: Radius.full,
     shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 6,
   },

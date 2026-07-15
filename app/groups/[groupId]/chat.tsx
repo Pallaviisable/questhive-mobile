@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '@/contexts/auth-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, Spacing, Radius } from '@/constants/theme';
@@ -31,15 +32,13 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const { user } = useAuth();
   const [xpMap, setXpMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const listRef = useRef<FlatList>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    (async () => { const stored = await AsyncStorage.getItem('user'); if (stored) setUser(JSON.parse(stored)); })();
-  }, []);
+
 
   const fetchMessages = useCallback(async () => {
     try { const res = await getChatMessages(groupId); setMessages(res.data); } catch {}

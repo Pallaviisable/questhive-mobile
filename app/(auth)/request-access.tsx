@@ -61,7 +61,7 @@ export default function RequestAccessScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
         <ThemedView style={styles.container}>
           {/* ThemeToggle temporarily disabled */}
 
@@ -110,7 +110,7 @@ export default function RequestAccessScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  container: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 24 },
   toggle: { position: 'absolute', top: 16, right: 20 },
   brandRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 28, gap: 10 },
   logoBox: { width: 34, height: 34, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },

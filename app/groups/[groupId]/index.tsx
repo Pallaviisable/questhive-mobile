@@ -4,15 +4,17 @@ import {
   ActivityIndicator, StyleSheet, RefreshControl,
 } from 'react-native';
 import Svg, { Circle, Text as SvgText } from 'react-native-svg';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '@/contexts/auth-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, Spacing, Radius } from '@/constants/theme';
 import {
   getGroupDetail, inviteByEmail, leaveGroup, deleteGroup, removeMember,
   getGroupActivities, getRedeemHistory, deactivateMember, reactivateMember,
-  getMyXP, getUserXP, getGroupMemberAnalytics,
+  getUserXP, getGroupMemberAnalytics,
 } from '@/lib/api';
 
 const C = Colors.dark;
@@ -31,19 +33,24 @@ function getTier(level = 1) {
   return t;
 }
 
-const ACTIVITY_ICON: Record<string, string> = {
-  TASK_ASSIGNED: '📋', TASK_COMPLETED: '✅', TASK_DENIED: '❌', TASK_CLAIMED: '🙋',
-  REWARD_REDEEMED: '🎁', MEMBER_JOINED: '👋', MEMBER_LEFT: '🚪', MEMBER_REMOVED: '🚫',
-  OPEN_TASK_REMINDER: '⏰', OPEN_TASK_PENALTY: '⚠️', PLEDGE_MADE: '🤝',
-  PLEDGE_FULFILLED: '✅', PLEDGE_MISSED: '❌',
+const TIER_ICON: Record<string, any> = {
+  elite: 'trophy', purple: 'diamond', gold: 'star', silver: 'medal', bronze: 'medal', none: 'medal-outline',
+};
+
+const ACTIVITY_ICON: Record<string, any> = {
+  TASK_ASSIGNED: 'clipboard-outline', TASK_COMPLETED: 'checkmark-circle-outline', TASK_DENIED: 'close-circle-outline',
+  TASK_CLAIMED: 'hand-left-outline', REWARD_REDEEMED: 'gift-outline', MEMBER_JOINED: 'log-in-outline',
+  MEMBER_LEFT: 'log-out-outline', MEMBER_REMOVED: 'person-remove-outline', OPEN_TASK_REMINDER: 'time-outline',
+  OPEN_TASK_PENALTY: 'alert-circle-outline', PLEDGE_MADE: 'handshake-outline', PLEDGE_FULFILLED: 'checkmark-circle-outline',
+  PLEDGE_MISSED: 'close-circle-outline',
 };
 
 const TABS = [
-  { key: 'MEMBERS',      label: '👥 Members'      },
-  { key: 'ANALYTICS',    label: '📊 Analytics'    },
-  { key: 'HALL_OF_FAME', label: '⭐ Hall of Fame' },
-  { key: 'ACTIVITY',     label: '🔔 Activity'     },
-  { key: 'REWARDS',      label: '🏆 Rewards'      },
+  { key: 'MEMBERS',      label: 'Members',      icon: 'people-outline'       },
+  { key: 'ANALYTICS',    label: 'Analytics',    icon: 'stats-chart-outline'  },
+  { key: 'HALL_OF_FAME', label: 'Hall of Fame', icon: 'trophy-outline'       },
+  { key: 'ACTIVITY',     label: 'Activity',     icon: 'notifications-outline' },
+  { key: 'REWARDS',      label: 'Rewards',      icon: 'gift-outline'         },
 ] as const;
 type TabKey = typeof TABS[number]['key'];
 
@@ -67,27 +74,27 @@ function StatRing({ value, max, color, size = 56 }: { value: number; max: number
   );
 }
 
-function Avatar({ name, color, size = 36, glow, level, levelColor }: { name?: string; color?: string; size?: number; glow?: string; level?: number; levelColor?: string }) {
+function Avatar({ name, color, size = 36, glow }: { name?: string; color?: string; size?: number; glow?: string }) {
   return (
-    <View style={{ width: size, height: size }}>
-      <View style={{
-        width: size, height: size, borderRadius: size / 2,
-        backgroundColor: color || '#f5c518', alignItems: 'center', justifyContent: 'center',
-        borderWidth: glow ? 2 : 0, borderColor: glow,
-      }}>
-        <ThemedText style={{ color: '#000', fontWeight: '800', fontSize: size * 0.4 }}>
-          {name?.[0]?.toUpperCase() || '?'}
-        </ThemedText>
-      </View>
-      {!!level && level > 1 && (
-        <View style={{
-          position: 'absolute', bottom: -3, right: -3,
-          backgroundColor: C.card, borderWidth: 1, borderColor: levelColor || C.tint,
-          borderRadius: Radius.full, paddingHorizontal: 4, paddingVertical: 1,
-        }}>
-          <ThemedText style={{ fontSize: 8, fontWeight: '800', color: levelColor || C.tint }}>{level}</ThemedText>
-        </View>
-      )}
+    <View style={{
+      width: size, height: size, borderRadius: size / 2,
+      backgroundColor: color || '#f5c518', alignItems: 'center', justifyContent: 'center',
+      borderWidth: glow ? 2 : 0, borderColor: glow,
+    }}>
+      <ThemedText style={{ color: '#000', fontWeight: '800', fontSize: size * 0.4 }}>
+        {name?.[0]?.toUpperCase() || '?'}
+      </ThemedText>
+    </View>
+  );
+}
+
+function LevelPill({ level, color }: { level: number; color: string }) {
+  return (
+    <View style={{
+      backgroundColor: `${color}18`, borderWidth: 1, borderColor: `${color}45`,
+      borderRadius: Radius.full, paddingHorizontal: 7, paddingVertical: 2,
+    }}>
+      <ThemedText style={{ fontSize: 10, fontWeight: '800', color }}>LV {level}</ThemedText>
     </View>
   );
 }
@@ -100,9 +107,10 @@ function Badge({ text, color }: { text: string; color: string }) {
   );
 }
 
-function OutlineButton({ label, color = C.tint, onPress }: { label: string; color?: string; onPress: () => void }) {
+function OutlineButton({ label, icon, color = C.tint, onPress }: { label: string; icon?: any; color?: string; onPress: () => void }) {
   return (
-    <TouchableOpacity onPress={onPress} style={{ borderWidth: 1, borderColor: color, borderRadius: Radius.sm, paddingVertical: 8, paddingHorizontal: 16 }}>
+    <TouchableOpacity onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: color, borderRadius: Radius.sm, paddingVertical: 8, paddingHorizontal: 16 }}>
+      {icon && <Ionicons name={icon} size={14} color={color} />}
       <ThemedText style={{ color, fontWeight: '600', fontSize: 13 }}>{label}</ThemedText>
     </TouchableOpacity>
   );
@@ -171,7 +179,6 @@ function MemberAnalyticsTab({ groupId, currentUserId, adminId }: { groupId: stri
         {sorted.map((m, i) => {
           const tier = getTier(m.level);
           const isMe = m.userId === currentUserId;
-          const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
           const rateColor = m.completionRatePercent >= 80 ? C.success : m.completionRatePercent >= 50 ? '#f59e0b' : C.danger;
           return (
             <View key={m.userId} style={{
@@ -179,14 +186,19 @@ function MemberAnalyticsTab({ groupId, currentUserId, adminId }: { groupId: stri
               borderWidth: 1, borderColor: isMe ? 'rgba(245,197,24,0.3)' : C.border,
             }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <ThemedText style={{ fontSize: 15, fontWeight: '800', width: 24, textAlign: 'center' }}>{rankEmoji}</ThemedText>
-                <Avatar name={m.fullName} color={m.avatarColor} glow={tier.frame !== 'none' ? tier.color : undefined} level={m.level} levelColor={tier.color} />
+                <View style={{ width: 24, alignItems: 'center' }}>
+                  {i < 3
+                    ? <Ionicons name="medal" size={18} color={i === 0 ? '#f5c518' : i === 1 ? '#c0c0c0' : '#cd7f32'} />
+                    : <ThemedText style={{ fontSize: 13, fontWeight: '700', color: C.textMuted }}>#{i + 1}</ThemedText>}
+                </View>
+                <Avatar name={m.fullName} color={m.avatarColor} glow={tier.frame !== 'none' ? tier.color : undefined} />
                 <View style={{ flex: 1, minWidth: 100 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <ThemedText style={{ fontSize: 14, fontWeight: '700', color: isMe ? C.tint : C.text }}>{m.fullName}{isMe ? ' (You)' : ''}</ThemedText>
                     {m.userId === adminId && <Badge text="ADMIN" color={C.tint} />}
+                    <LevelPill level={m.level ?? 1} color={tier.color} />
                   </View>
-                  <ThemedText style={{ fontSize: 11, color: tier.color, fontWeight: '600' }}>{tier.title}</ThemedText>
+                  <ThemedText style={{ fontSize: 11, color: tier.color, fontWeight: '600', marginTop: 2 }}>{tier.title}</ThemedText>
                 </View>
                 <StatRing value={m.tasksCompleted} max={m.tasksAssigned} color={rateColor} />
                 <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}>
@@ -196,7 +208,7 @@ function MemberAnalyticsTab({ groupId, currentUserId, adminId }: { groupId: stri
                     { label: 'Pending', value: m.tasksPending, color: '#f59e0b' },
                     { label: 'Coins', value: m.coins, color: C.tint },
                     { label: 'XP', value: m.totalXp, color: C.purple },
-                    { label: 'Streak', value: `${m.streak}🔥`, color: '#f97316' },
+                    { label: 'Streak', value: m.streak, color: '#f97316' },
                   ].map((s, j) => (
                     <View key={j} style={{ alignItems: 'center', minWidth: 36 }}>
                       <ThemedText style={{ fontSize: 14, fontWeight: '800', color: s.color }}>{s.value}</ThemedText>
@@ -232,11 +244,12 @@ function MemberAnalyticsTab({ groupId, currentUserId, adminId }: { groupId: stri
 export default function GroupDetailScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [group, setGroup] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const { user } = useAuth();
   const [xpMap, setXpMap] = useState<Record<string, any>>({});
   const [inviteEmail, setInviteEmail] = useState('');
   const [msg, setMsg] = useState('');
@@ -245,7 +258,7 @@ export default function GroupDetailScreen() {
   const [activities, setActivities] = useState<any[]>([]);
   const [groupRewards, setGroupRewards] = useState<any[]>([]);
 
-  const [confirmModal, setConfirmModal] = useState<{ title: string; message: string; confirmLabel: string; onConfirm: () => void } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ title: string; icon: any; message: string; confirmLabel: string; onConfirm: () => void } | null>(null);
   const [reasonModal, setReasonModal] = useState<{ title: string; subtitle: string; btnLabel: string; btnColor: string; onConfirm: (r: string) => void } | null>(null);
   const [reasonText, setReasonText] = useState('');
 
@@ -284,10 +297,6 @@ export default function GroupDetailScreen() {
   }, [groupId]);
 
   useEffect(() => {
-    (async () => {
-      const stored = await AsyncStorage.getItem('user');
-      if (stored) setUser(JSON.parse(stored));
-    })();
     fetchGroup(); fetchActivities(); fetchGroupRewards();
   }, [fetchGroup, fetchActivities, fetchGroupRewards]);
 
@@ -300,7 +309,7 @@ export default function GroupDetailScreen() {
   };
 
   const handleLeaveGroup = () => setConfirmModal({
-    title: '🚪 Leave Group', message: 'Are you sure you want to leave this group?', confirmLabel: 'Yes, Leave',
+    title: 'Leave Group', icon: 'log-out-outline', message: 'Are you sure you want to leave this group?', confirmLabel: 'Yes, Leave',
     onConfirm: async () => {
       try { await leaveGroup(groupId); router.replace('/groups' as any); }
       catch (err: any) { setError(err.response?.data?.message || 'Failed.'); }
@@ -309,7 +318,7 @@ export default function GroupDetailScreen() {
   });
 
   const handleDeleteGroup = () => setConfirmModal({
-    title: '🗑️ Delete Group', message: 'This permanently deletes the group for everyone. Continue?', confirmLabel: 'Yes, Delete',
+    title: 'Delete Group', icon: 'trash-outline', message: 'This permanently deletes the group for everyone. Continue?', confirmLabel: 'Yes, Delete',
     onConfirm: async () => {
       try { await deleteGroup(groupId); router.replace('/groups' as any); }
       catch (err: any) { setError(err.response?.data?.message || 'Failed.'); }
@@ -345,10 +354,10 @@ export default function GroupDetailScreen() {
   const validMembers = group?.members?.filter((m: any) => m.fullName && m.fullName !== 'Unknown User') || [];
 
   const quickLinks = [
-    { label: '✅ Tasks',       href: `/groups/${groupId}/tasks` },
-    { label: '🏆 Leaderboard', href: `/groups/${groupId}/leaderboard` },
-    { label: '💬 Chat',        href: `/groups/${groupId}/chat` },
-    { label: '⚖️ Fairness',   href: `/groups/${groupId}/fairness` },
+    { label: 'Tasks',       icon: 'checkbox-outline',    href: `/groups/${groupId}/tasks` },
+    { label: 'Leaderboard', icon: 'podium-outline',      href: `/groups/${groupId}/leaderboard` },
+    { label: 'Chat',        icon: 'chatbubbles-outline', href: `/groups/${groupId}/chat` },
+    { label: 'Fairness',    icon: 'scale-outline',       href: `/groups/${groupId}/fairness` },
   ];
 
   const TITLE_TIERS_DISPLAY = TITLE_TIERS.slice(1).reverse();
@@ -371,13 +380,13 @@ export default function GroupDetailScreen() {
   return (
     <ThemedView style={styles.container}>
       <ScrollView
-        contentContainerStyle={{ padding: Spacing.md, paddingBottom: 60 }}
+        contentContainerStyle={{ padding: Spacing.md, paddingTop: insets.top + Spacing.sm, paddingBottom: 60 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.tint} />}
       >
         {/* Header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 8 }}>
-          <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: 'rgba(245,197,24,0.15)', borderWidth: 1, borderColor: 'rgba(245,197,24,0.2)', alignItems: 'center', justifyContent: 'center' }}>
-            <ThemedText style={{ fontSize: 28 }}>🐝</ThemedText>
+          <View style={{ width: 56, height: 56, borderRadius: Radius.lg, backgroundColor: 'rgba(245,197,24,0.15)', borderWidth: 1, borderColor: 'rgba(245,197,24,0.25)', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="people-outline" size={26} color={C.tint} />
           </View>
           <View style={{ flex: 1 }}>
             <ThemedText type="title">{group?.name}</ThemedText>
@@ -387,21 +396,33 @@ export default function GroupDetailScreen() {
 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16, marginBottom: 20 }}>
           {quickLinks.map(link => (
-            <OutlineButton key={link.href} label={link.label} onPress={() => router.push(link.href as any)} />
+            <OutlineButton key={link.href} label={link.label} icon={link.icon} onPress={() => router.push(link.href as any)} />
           ))}
         </View>
 
-        {msg ? <View style={styles.msgBox}><ThemedText style={{ color: C.success, fontSize: 13 }}>✓ {msg}</ThemedText></View> : null}
-        {error ? <View style={styles.errBox}><ThemedText style={{ color: C.danger, fontSize: 13 }}>{error}</ThemedText></View> : null}
+        {msg ? (
+          <View style={styles.msgBox}>
+            <Ionicons name="checkmark-circle" size={14} color={C.success} />
+            <ThemedText style={{ color: C.success, fontSize: 13 }}>{msg}</ThemedText>
+          </View>
+        ) : null}
+        {error ? (
+          <View style={styles.errBox}>
+            <Ionicons name="alert-circle" size={14} color={C.danger} />
+            <ThemedText style={{ color: C.danger, fontSize: 13 }}>{error}</ThemedText>
+          </View>
+        ) : null}
 
         {/* Tabs */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
           <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: C.border }}>
             {TABS.map(t => (
               <TouchableOpacity key={t.key} onPress={() => setActiveTab(t.key)} style={{
+                flexDirection: 'row', alignItems: 'center', gap: 6,
                 paddingVertical: 10, paddingHorizontal: 16,
                 borderBottomWidth: 2, borderColor: activeTab === t.key ? C.tint : 'transparent',
               }}>
+                <Ionicons name={t.icon} size={15} color={activeTab === t.key ? C.tint : C.textMuted} />
                 <ThemedText style={{ fontSize: 13, fontWeight: activeTab === t.key ? '700' : '500', color: activeTab === t.key ? C.tint : C.textMuted }}>
                   {t.label}
                 </ThemedText>
@@ -414,12 +435,15 @@ export default function GroupDetailScreen() {
         {activeTab === 'MEMBERS' && (
           <View style={{ gap: 16 }}>
             <View style={styles.card}>
-              <ThemedText style={styles.cardTitle}>👥 Members ({validMembers.length})</ThemedText>
+              <View style={styles.cardTitleRow}>
+                <Ionicons name="people-outline" size={16} color={C.text} />
+                <ThemedText style={styles.cardTitle}>Members ({validMembers.length})</ThemedText>
+              </View>
               <View style={{ gap: 8 }}>
                 {validMembers.map((member: any, i: number) => {
                   const isDeactivated = deactivatedIds.includes(member.id);
                   const memberId = member.id ?? member._id;
-                  const { tier } = getXpInfo(memberId);
+                  const { tier, level } = getXpInfo(memberId);
                   return (
                     <View key={i} style={{
                       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -428,10 +452,13 @@ export default function GroupDetailScreen() {
                       borderWidth: isDeactivated ? 1 : 0, borderColor: 'rgba(239,68,68,0.2)',
                     }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                        <Avatar name={member.fullName} color={member.avatarColor} glow={tier.frame !== 'none' ? tier.color : undefined} level={getXpInfo(memberId).level} levelColor={tier.color} />
+                        <Avatar name={member.fullName} color={member.avatarColor} glow={tier.frame !== 'none' ? tier.color : undefined} />
                         <View style={{ flex: 1 }}>
-                          <ThemedText style={{ fontSize: 14, fontWeight: '600', color: isDeactivated ? '#666' : C.text }}>{member.fullName}</ThemedText>
-                          <ThemedText style={{ fontSize: 11, color: tier.color, fontWeight: '600' }}>{tier.title}</ThemedText>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <ThemedText style={{ fontSize: 14, fontWeight: '600', color: isDeactivated ? '#666' : C.text }}>{member.fullName}</ThemedText>
+                            <LevelPill level={level} color={tier.color} />
+                          </View>
+                          <ThemedText style={{ fontSize: 11, color: tier.color, fontWeight: '600', marginTop: 2 }}>{tier.title}</ThemedText>
                         </View>
                         {memberId === group?.adminId && <Badge text="Admin" color={C.tint} />}
                         {isDeactivated && <Badge text="DEACTIVATED" color={C.danger} />}
@@ -452,7 +479,10 @@ export default function GroupDetailScreen() {
 
             {isAdmin && (
               <View style={styles.card}>
-                <ThemedText style={styles.cardTitle}>📧 Invite by Email</ThemedText>
+                <View style={styles.cardTitleRow}>
+                  <Ionicons name="mail-outline" size={16} color={C.text} />
+                  <ThemedText style={styles.cardTitle}>Invite by Email</ThemedText>
+                </View>
                 <ThemedText style={{ color: C.textMuted, fontSize: 12, marginBottom: 12 }}>An invite link will be sent to their email.</ThemedText>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   <TextInput
@@ -467,8 +497,8 @@ export default function GroupDetailScreen() {
             )}
 
             <View style={{ alignItems: 'flex-end' }}>
-              {!isAdmin && <OutlineButton label="🚪 Leave Group" color={C.danger} onPress={handleLeaveGroup} />}
-              {isAdmin && <OutlineButton label="🗑️ Delete Group" color={C.danger} onPress={handleDeleteGroup} />}
+              {!isAdmin && <OutlineButton label="Leave Group" icon="log-out-outline" color={C.danger} onPress={handleLeaveGroup} />}
+              {isAdmin && <OutlineButton label="Delete Group" icon="trash-outline" color={C.danger} onPress={handleDeleteGroup} />}
             </View>
           </View>
         )}
@@ -483,7 +513,7 @@ export default function GroupDetailScreen() {
               <View key={tier.frame} style={{ backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: `${tier.color}44`, padding: 20 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                   <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: `${tier.color}22`, borderWidth: 2, borderColor: tier.color, alignItems: 'center', justifyContent: 'center' }}>
-                    <ThemedText style={{ fontSize: 14 }}>{tier.frame === 'elite' ? '👑' : tier.frame === 'purple' ? '💜' : tier.frame === 'gold' ? '🌟' : tier.frame === 'silver' ? '🥈' : '🥉'}</ThemedText>
+                    <Ionicons name={TIER_ICON[tier.frame] ?? 'medal-outline'} size={16} color={tier.color} />
                   </View>
                   <View>
                     <ThemedText style={{ fontWeight: '800', fontSize: 14, color: tier.color }}>{tier.title}</ThemedText>
@@ -491,7 +521,7 @@ export default function GroupDetailScreen() {
                   </View>
                 </View>
                 {holders.length === 0
-                  ? <ThemedText style={{ color: C.textMuted, fontSize: 13, fontStyle: 'italic' }}>Nobody yet — be the first to reach Level {tier.minLevel}! 🐝</ThemedText>
+                  ? <ThemedText style={{ color: C.textMuted, fontSize: 13, fontStyle: 'italic' }}>Nobody yet — be the first to reach Level {tier.minLevel}!</ThemedText>
                   : <View style={{ gap: 8 }}>
                       {holders.map(({ member, level }: any) => {
                         const isMe = (member.id ?? member._id) === (user?.id ?? user?._id);
@@ -511,20 +541,25 @@ export default function GroupDetailScreen() {
 
         {activeTab === 'ACTIVITY' && (
           <View style={styles.card}>
-            <ThemedText style={styles.cardTitle}>🔔 Group Activity</ThemedText>
+            <View style={styles.cardTitleRow}>
+              <Ionicons name="notifications-outline" size={16} color={C.text} />
+              <ThemedText style={styles.cardTitle}>Group Activity</ThemedText>
+            </View>
             {activities.length === 0
-              ? <ThemedText style={{ color: C.textMuted, textAlign: 'center', padding: 32, fontSize: 13 }}>No activity yet. Start assigning tasks! 🐝</ThemedText>
+              ? <ThemedText style={{ color: C.textMuted, textAlign: 'center', padding: 32, fontSize: 13 }}>No activity yet. Start assigning tasks!</ThemedText>
               : <View style={{ gap: 8 }}>
                   {activities.map((a, i) => (
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 12, backgroundColor: C.backgroundElevated, borderRadius: 10 }}>
-                      <ThemedText style={{ fontSize: 18 }}>{ACTIVITY_ICON[a.type] || '📌'}</ThemedText>
+                      <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(245,197,24,0.12)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name={ACTIVITY_ICON[a.type] || 'bookmark-outline'} size={15} color={C.tint} />
+                      </View>
                       <View style={{ flex: 1 }}>
                         <ThemedText style={{ fontSize: 13, fontWeight: '600' }}>
                           <ThemedText style={{ color: C.tint }}>{a.actorName}</ThemedText>
                           {a.targetName ? <ThemedText style={{ color: C.textMuted }}> → {a.targetName}</ThemedText> : null}
                         </ThemedText>
                         <ThemedText style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{a.detail}</ThemedText>
-                        {a.coins !== 0 ? <ThemedText style={{ fontSize: 11, color: a.coins > 0 ? C.tint : C.danger, marginTop: 2 }}>{a.coins > 0 ? `+${a.coins}` : a.coins}🪙</ThemedText> : null}
+                        {a.coins !== 0 ? <ThemedText style={{ fontSize: 11, color: a.coins > 0 ? C.tint : C.danger, marginTop: 2, fontWeight: '700' }}>{a.coins > 0 ? `+${a.coins}` : a.coins} coins</ThemedText> : null}
                       </View>
                       <ThemedText style={{ fontSize: 11, color: C.textMuted, textAlign: 'right' }}>
                         {new Date(a.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}{'\n'}
@@ -538,18 +573,23 @@ export default function GroupDetailScreen() {
 
         {activeTab === 'REWARDS' && (
           <View style={styles.card}>
-            <ThemedText style={styles.cardTitle}>🏆 Group Reward Redemptions</ThemedText>
+            <View style={styles.cardTitleRow}>
+              <Ionicons name="trophy-outline" size={16} color={C.text} />
+              <ThemedText style={styles.cardTitle}>Group Reward Redemptions</ThemedText>
+            </View>
             {groupRewards.length === 0
               ? <ThemedText style={{ color: C.textMuted, textAlign: 'center', padding: 32, fontSize: 13 }}>No rewards redeemed yet.</ThemedText>
               : <View style={{ gap: 8 }}>
                   {groupRewards.map((r, i) => (
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: C.backgroundElevated, borderRadius: 10 }}>
-                      <ThemedText style={{ fontSize: 20 }}>🎁</ThemedText>
+                      <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(245,197,24,0.12)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="gift-outline" size={16} color={C.tint} />
+                      </View>
                       <View style={{ flex: 1 }}>
                         <ThemedText style={{ fontSize: 13, fontWeight: '600' }}>{r.description}</ThemedText>
                         <ThemedText style={{ fontSize: 11, color: C.textMuted }}>{new Date(r.earnedAt).toLocaleDateString()}</ThemedText>
                       </View>
-                      <ThemedText style={{ color: C.danger, fontWeight: '700' }}>{r.coinsEarned}🪙</ThemedText>
+                      <ThemedText style={{ color: C.danger, fontWeight: '700', fontSize: 13 }}>-{r.coinsEarned}</ThemedText>
                     </View>
                   ))}
                 </View>}
@@ -561,7 +601,10 @@ export default function GroupDetailScreen() {
       <Modal visible={!!confirmModal} transparent animationType="fade" onRequestClose={() => setConfirmModal(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <ThemedText style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>{confirmModal?.title}</ThemedText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              {confirmModal?.icon && <Ionicons name={confirmModal.icon} size={18} color={C.danger} />}
+              <ThemedText style={{ fontSize: 18, fontWeight: '700' }}>{confirmModal?.title}</ThemedText>
+            </View>
             <ThemedText style={{ color: C.textMuted, fontSize: 14, marginBottom: 24, lineHeight: 20 }}>{confirmModal?.message}</ThemedText>
             <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'flex-end' }}>
               <OutlineButton label="Cancel" onPress={() => setConfirmModal(null)} />
@@ -600,14 +643,15 @@ export default function GroupDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   card: { backgroundColor: C.card, borderRadius: Radius.md, padding: 24, borderWidth: 1, borderColor: C.border },
-  cardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 16 },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  cardTitle: { fontSize: 16, fontWeight: '700' },
   input: {
     flex: 1, backgroundColor: C.backgroundElevated, borderWidth: 1, borderColor: C.border,
     borderRadius: 10, color: C.text, paddingHorizontal: 14, paddingVertical: 10, fontSize: 13,
   },
   primaryBtn: { backgroundColor: C.tint, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 18, justifyContent: 'center' },
-  msgBox: { backgroundColor: 'rgba(34,197,94,0.1)', borderWidth: 1, borderColor: C.success, borderRadius: 8, padding: 10, marginBottom: 16 },
-  errBox: { backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: C.danger, borderRadius: 8, padding: 10, marginBottom: 16 },
+  msgBox: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(34,197,94,0.1)', borderWidth: 1, borderColor: C.success, borderRadius: 8, padding: 10, marginBottom: 16 },
+  errBox: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: C.danger, borderRadius: 8, padding: 10, marginBottom: 16 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: 20 },
   modalBox: { backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 16, padding: 28, width: '100%', maxWidth: 420 },
 });

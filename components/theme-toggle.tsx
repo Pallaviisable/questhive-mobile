@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useDerivedValue, useSharedValue, withTiming } from 'react-native-reanimated';
 import { PressableScale } from '@/components/pressable-scale';
 import { Colors } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/theme-context';
@@ -10,10 +10,11 @@ export function ThemeToggle({ style }: { style?: any }) {
   const colors = Colors[scheme];
   const rotate = useSharedValue(scheme === 'dark' ? 0 : 1);
 
+  const deg = useDerivedValue(() => withTiming(rotate.value * 180, { duration: 300 }));
+
   const animatedStyle = useAnimatedStyle(() => {
-    const deg = withTiming(rotate.value * 180, { duration: 300 });
     return {
-      transform: [{ rotate: deg + 'deg' }],
+      transform: [{ rotate: `${deg.value}deg` }],
     };
   });
 

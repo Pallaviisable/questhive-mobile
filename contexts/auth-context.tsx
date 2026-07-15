@@ -36,6 +36,7 @@ type AuthContextType = {
     verifyEmail: (email: string, otp: string) => Promise<void>;
     resendOtp: (email: string) => Promise<void>;
     logout: () => Promise<void>;
+    updateUser: (patch: Partial<QuestHiveUser>) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -73,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const persistSession = async (token: string, userData: QuestHiveUser) => {
+        console.log("LOGIN USER DATA:", JSON.stringify(userData));
         await setToken(token);
         await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
         setUser(userData);
@@ -117,6 +119,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
     };
 
+    const updateUser = async (patch: Partial<QuestHiveUser>) => {
+        setUser((prev) => {
+            if (!prev) return prev;
+            const next = { ...prev, ...patch };
+            AsyncStorage.setItem(USER_KEY, JSON.stringify(next));
+            return next;
+        });
+    };
+
     return (
         <AuthContext.Provider
             value={{
@@ -128,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 verifyEmail,
                 resendOtp,
                 logout,
+                updateUser,
             }}>
             {children}
         </AuthContext.Provider>
