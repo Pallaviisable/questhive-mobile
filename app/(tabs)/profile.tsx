@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { PasswordInput } from '@/components/password-input';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { useAuth } from '@/contexts/auth-context';
 import { Colors, Spacing, Radius } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -144,8 +145,13 @@ export default function ProfileScreen() {
   return (
     <ThemedView style={styles.container}>
       <ScrollView contentContainerStyle={{ padding: Spacing.md, paddingTop: insets.top + Spacing.sm, paddingBottom: 60 }}>
-        <ThemedText type="title" style={{ marginBottom: 4 }}>Settings</ThemedText>
-        <ThemedText style={{ color: C.textMuted, fontSize: 13, marginBottom: 20 }}>Manage your account preferences</ThemedText>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+          <View style={{ flex: 1 }}>
+            <ThemedText type="title" style={{ marginBottom: 4 }}>Settings</ThemedText>
+            <ThemedText style={{ color: C.textMuted, fontSize: 13 }}>Manage your account preferences</ThemedText>
+          </View>
+          <ThemeToggle />
+        </View>
 
         {/* Profile summary card */}
         <View style={{

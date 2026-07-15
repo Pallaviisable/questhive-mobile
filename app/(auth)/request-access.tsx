@@ -44,7 +44,7 @@ export default function RequestAccessScreen() {
   if (submitted) {
     return (
       <ThemedView style={styles.container}>
-        {/* ThemeToggle temporarily disabled */}
+        <ThemeToggle style={styles.toggle} />
         <Animated.View entering={ZoomIn.duration(400).springify()} style={styles.successIconWrap}>
           <Ionicons name="checkmark-circle" size={72} color={colors.success} />
         </Animated.View>
@@ -63,7 +63,7 @@ export default function RequestAccessScreen() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
         <ThemedView style={styles.container}>
-          {/* ThemeToggle temporarily disabled */}
+          <ThemeToggle style={styles.toggle} />
 
           <Animated.View entering={FadeInDown.duration(450).springify()} style={styles.brandRow}>
             <View style={[styles.logoBox, { backgroundColor: colors.tint }]}>

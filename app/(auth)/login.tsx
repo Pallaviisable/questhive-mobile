@@ -51,7 +51,7 @@ export default function LoginScreen() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         <ThemedView style={styles.container}>
-          {/* ThemeToggle temporarily disabled */}
+          <ThemeToggle style={styles.toggle} />
 
           <Animated.View entering={FadeInDown.duration(450).springify()} style={styles.brandRow}>
             <View style={[styles.logoBox, { backgroundColor: colors.tint }]}>
