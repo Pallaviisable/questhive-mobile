@@ -86,15 +86,22 @@ export default function RewardsScreen() {
 
   useEffect(() => { loadRedeemData(); }, [loadRedeemData]);
 
-  const handleRedeem = async (optId: string, cost: number) => {
+  const handleRedeem = async (optId: string, cost: number, title: string) => {
     if ((coins ?? 0) < cost) { Alert.alert('Not enough coins', 'Keep completing tasks!'); return; }
-    try {
-      await redeemOption(optId);
-      loadData();
-      loadRedeemData();
-    } catch (err: any) {
-      Alert.alert('Failed', err?.response?.data?.message || 'Redemption failed.');
-    }
+    Alert.alert('Redeem reward', `Spend ${cost} coins on "${title}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Redeem', onPress: async () => {
+          try {
+            await redeemOption(optId);
+            loadData();
+            loadRedeemData();
+          } catch (err: any) {
+            Alert.alert('Failed', err?.response?.data?.message || 'Redemption failed.');
+          }
+        },
+      },
+    ]);
   };
 
   const handleCreateOption = async () => {
@@ -131,6 +138,7 @@ export default function RewardsScreen() {
   return (
     <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={{ paddingHorizontal: Spacing.md, paddingTop: insets.top + Spacing.sm }}>
+        <ThemedText type="title" style={{ marginBottom: Spacing.sm }}>Rewards</ThemedText>
         <View style={[styles.coinCard, { backgroundColor: colors.backgroundElevated, borderColor: 'rgba(245,197,24,0.3)' }]}>
           <View style={[styles.coinIconCircle, { backgroundColor: 'rgba(245,197,24,0.15)' }]}>
             <Ionicons name="disc-outline" size={26} color={colors.coin} />
@@ -209,7 +217,7 @@ export default function RewardsScreen() {
                     <TouchableOpacity
                       style={[styles.redeemBtn, { backgroundColor: canAfford ? colors.tint : colors.backgroundElevated2, borderWidth: canAfford ? 0 : 1, borderColor: colors.border }]}
                       disabled={!canAfford}
-                      onPress={() => handleRedeem(item.id, item.coinsRequired)}>
+                      onPress={() => handleRedeem(item.id, item.coinsRequired, item.title)}>
                       {!canAfford && <Ionicons name="lock-closed-outline" size={12} color={colors.textMuted} style={{ marginRight: 4 }} />}
                       <ThemedText style={{ color: canAfford ? '#0A0A0A' : colors.textMuted, fontWeight: '700', fontSize: 13 }}>{canAfford ? 'Redeem' : 'Locked'}</ThemedText>
                     </TouchableOpacity>

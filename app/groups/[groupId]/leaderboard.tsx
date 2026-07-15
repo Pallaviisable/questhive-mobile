@@ -93,8 +93,7 @@ export default function LeaderboardScreen() {
     <ThemedView style={styles.container}>
       <ScrollView contentContainerStyle={{ padding: Spacing.md, paddingBottom: 60 }}>
         <View style={{ alignItems: 'center', marginBottom: 20 }}>
-          <ThemedText type="title">🏆 Leaderboard</ThemedText>
-          <ThemedText style={{ color: C.textMuted, fontSize: 13, marginTop: 4 }}>{group?.name}</ThemedText>
+          <ThemedText style={{ color: C.textMuted, fontSize: 13 }}>{group?.name}</ThemedText>
         </View>
 
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 20 }}>

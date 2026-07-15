@@ -89,10 +89,6 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <ThemedView style={styles.container}>
-        <View style={{ padding: Spacing.md, paddingBottom: 0 }}>
-          <ThemedText type="title" style={{ marginBottom: 8 }}>💬 Group Chat</ThemedText>
-        </View>
-
         <FlatList
           ref={listRef}
           data={messages}

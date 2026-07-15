@@ -68,7 +68,7 @@ export default function FairnessScreen() {
   if (!report) {
     return (
       <ThemedView style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
-        <ThemedText style={{ color: '#ef4444' }}>Failed to load report.</ThemedText>
+        <ThemedText style={{ color: C.danger }}>Failed to load report.</ThemedText>
       </ThemedView>
     );
   }
@@ -79,7 +79,6 @@ export default function FairnessScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: Spacing.md }}>
-      <ThemedText type="title" style={{ marginBottom: 4 }}>⚖️ Fairness Report</ThemedText>
       <ThemedText style={{ color: C.textMuted, fontSize: 13, marginBottom: 20 }}>
         Task distribution across group members
       </ThemedText>
