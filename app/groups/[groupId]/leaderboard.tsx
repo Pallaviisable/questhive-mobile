@@ -6,9 +6,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, Spacing, Radius } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getLeaderboard, getGroupDetail, getUserXP } from '@/lib/api';
-
-const C = Colors.dark;
 
 const TITLE_TIERS = [
   { frame: 'none', title: 'Newcomer', minLevel: 1, color: '#666' },
@@ -28,6 +27,9 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 const RANK_COLORS = ['#f5c518', '#c0c0c0', '#cd7f32'];
 
 export default function LeaderboardScreen() {
+  const scheme = useColorScheme() ?? 'dark';
+  const C = Colors[scheme];
+  const styles = makeStyles(C);
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const [leaderboard, setLeaderboard] = useState<{ userId: string; coins: number }[]>([]);
   const [group, setGroup] = useState<any>(null);
@@ -219,6 +221,6 @@ export default function LeaderboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (C: typeof Colors.dark) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
 });

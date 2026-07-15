@@ -4,9 +4,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, Spacing, Radius } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getFairnessReport, getConcentrationReport, getGroupTasks, flagBonus } from '@/lib/api';
-
-const C = Colors.dark;
 
 function statusColor(status?: string) {
   if (status === 'FAIR') return '#22c55e';
@@ -20,6 +19,9 @@ function statusEmoji(status?: string) {
 }
 
 export default function FairnessScreen() {
+  const scheme = useColorScheme() ?? 'dark';
+  const C = Colors[scheme];
+  const styles = makeStyles(C);
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const [report, setReport] = useState<any>(null);
   const [concentration, setConcentration] = useState<any>(null);
@@ -170,6 +172,6 @@ export default function FairnessScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (C: typeof Colors.dark) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
 });

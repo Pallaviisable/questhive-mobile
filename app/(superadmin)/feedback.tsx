@@ -4,9 +4,8 @@ import { FlatList, RefreshControl, StyleSheet, TouchableOpacity, View } from 're
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, Spacing, Radius } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getAllFeedback, updateFeedbackStatus } from '@/lib/api';
-
-const C = Colors.dark;
 
 type Feedback = {
   id: string; username: string; type: 'BUG' | 'SUGGESTION';
@@ -14,6 +13,9 @@ type Feedback = {
 };
 
 export default function FeedbackScreen() {
+  const scheme = useColorScheme() ?? 'dark';
+  const C = Colors[scheme];
+  const styles = makeStyles(C);
   const [items, setItems] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -93,7 +95,7 @@ export default function FeedbackScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (C: typeof Colors.dark) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   empty: { textAlign: 'center', marginTop: 40, opacity: 0.5 },
 });

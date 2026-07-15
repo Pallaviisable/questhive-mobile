@@ -9,9 +9,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, Spacing, Radius } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getChatMessages, sendChatMessage, getGroupDetail, getUserXP } from '@/lib/api';
-
-const C = Colors.dark;
 
 const TITLE_TIERS = [
   { frame: 'none', title: 'Newcomer', minLevel: 1, color: '#666' },
@@ -28,6 +27,9 @@ function getTier(level = 1) {
 }
 
 export default function ChatScreen() {
+  const scheme = useColorScheme() ?? 'dark';
+  const C = Colors[scheme];
+  const styles = makeStyles(C);
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
@@ -185,7 +187,7 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (C: typeof Colors.dark) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   inputRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-end', padding: Spacing.md, borderTopWidth: 1, borderColor: C.border },
   input: { flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 12, color: C.text, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, maxHeight: 100 },

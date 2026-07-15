@@ -6,11 +6,15 @@ import { FormInput } from '@/components/form-input';
 import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/contexts/auth-context';
 
 export default function VerifyEmailScreen() {
   const params = useLocalSearchParams<{ email?: string }>();
   const { verifyEmail, resendOtp } = useAuth();
+  const scheme = useColorScheme() ?? 'dark';
+  const C = Colors[scheme];
 
   const [email] = useState(params.email ?? '');
   const [otp, setOtp] = useState('');
@@ -74,8 +78,8 @@ export default function VerifyEmailScreen() {
             onChangeText={setOtp}
           />
 
-          {!!error && <ThemedText style={styles.error}>{error}</ThemedText>}
-          {!!notice && <ThemedText style={styles.notice}>{notice}</ThemedText>}
+          {!!error && <ThemedText style={[styles.error, { color: C.danger }]}>{error}</ThemedText>}
+          {!!notice && <ThemedText style={[styles.notice, { color: C.success }]}>{notice}</ThemedText>}
 
           <PrimaryButton title="Verify" loading={loading} onPress={handleVerify} />
           <PrimaryButton
@@ -108,12 +112,10 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   error: {
-    color: '#DC2626',
     marginBottom: 12,
     textAlign: 'center',
   },
   notice: {
-    color: '#16A34A',
     marginBottom: 12,
     textAlign: 'center',
   },

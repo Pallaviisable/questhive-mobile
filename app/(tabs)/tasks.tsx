@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, Modal, RefreshControl, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { PrimaryButton } from '@/components/primary-button';
+import { Colors, Spacing, Radius } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getMyTasks, getMyPersonalTasks, createPersonalTask, updateTaskStatus, claimTask, deleteTask } from '@/lib/api';
 
 type Task = {
@@ -20,10 +25,14 @@ type Task = {
 
 const CATEGORIES = ['GROCERIES', 'HOME', 'SCHOOL', 'PERSONAL', 'WORK', 'OTHER'];
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
-
 const STATUS_FILTERS = ['ALL', 'PENDING', 'IN_PROGRESS', 'COMPLETED', 'DENIED'] as const;
 
 export default function TasksScreen() {
+  const scheme = useColorScheme() ?? 'dark';
+  const C = Colors[scheme];
+  const styles = makeStyles(C);
+  const insets = useSafeAreaInsets();
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]>('ALL');
   const [loading, setLoading] = useState(true);
@@ -90,7 +99,7 @@ export default function TasksScreen() {
   const handleClaim = async (taskId: string) => {
     try {
       await claimTask(taskId);
-      loadTasks(); // claimed task moves out of "open" pool, refetch for accuracy
+      loadTasks();
     } catch {
       Alert.alert('Failed', 'Could not claim this task. Someone may have claimed it first.');
     }
@@ -98,13 +107,18 @@ export default function TasksScreen() {
 
   const filteredTasks = filter === 'ALL' ? tasks : tasks.filter((t) => t.status === filter);
 
+  const statusColor = (status: Task['status']) => {
+    if (status === 'COMPLETED') return C.success;
+    if (status === 'IN_PROGRESS') return C.info;
+    if (status === 'DENIED') return C.danger;
+    return C.tint;
+  };
+
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
       <View style={styles.headerRow}>
         <ThemedText type="title" style={{ marginBottom: 0 }}>Tasks</ThemedText>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowCreate(true)}>
-          <ThemedText style={styles.addBtnText}>+ Add Task</ThemedText>
-        </TouchableOpacity>
+        <PrimaryButton title="+ Add Task" onPress={() => setShowCreate(true)} style={styles.addBtn} />
       </View>
 
       <View style={styles.tabRow}>
@@ -128,9 +142,7 @@ export default function TasksScreen() {
           <TouchableOpacity
             style={[styles.filterChip, filter === item && styles.filterChipActive]}
             onPress={() => setFilter(item)}>
-            <ThemedText style={filter === item ? styles.filterTextActive : styles.filterText}>
-              {item}
-            </ThemedText>
+            <ThemedText style={filter === item ? styles.filterTextActive : styles.filterText}>{item}</ThemedText>
           </TouchableOpacity>
         )}
       />
@@ -138,64 +150,76 @@ export default function TasksScreen() {
       <FlatList
         data={filteredTasks}
         keyExtractor={(t) => t.id}
+        contentContainerStyle={{ paddingBottom: Spacing.xl }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadTasks(); }} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadTasks(); }} tintColor={C.tint} />
         }
-        renderItem={({ item }) => (
-          <ThemedView style={styles.card}>
-            <ThemedText style={styles.taskTitle}>{item.title}</ThemedText>
-            <ThemedText style={styles.meta}>
-              {item.category} • {item.priority} • {item.coinsReward} coins
-            </ThemedText>
-            {item.deadline ? (
-              <ThemedText style={[styles.meta, item.status !== 'COMPLETED' && new Date(item.deadline) < new Date() && { color: '#ef4444' }]}>
-                {item.status !== 'COMPLETED' && new Date(item.deadline) < new Date() ? 'Overdue · ' : ''}
-                {new Date(item.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-              </ThemedText>
-            ) : null}
-            <ThemedView style={styles.actions}>
-              {!item.assignedToId && item.status === 'PENDING' && (
-                <TouchableOpacity style={styles.claimBtn} onPress={() => handleClaim(item.id)}>
-                  <ThemedText style={styles.btnText}>Claim</ThemedText>
-                </TouchableOpacity>
-              )}
-              {item.status === 'PENDING' && (
-                <TouchableOpacity style={styles.startBtn} onPress={() => handleStart(item.id)}>
-                  <ThemedText style={styles.btnText}>Start</ThemedText>
-                </TouchableOpacity>
-              )}
-              {item.status === 'IN_PROGRESS' && (
-                <TouchableOpacity style={styles.completeBtn} onPress={() => handleComplete(item.id)}>
-                  <ThemedText style={styles.btnText}>Mark Complete</ThemedText>
-                </TouchableOpacity>
-              )}
-              {item.personal && (
-                <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
-                  <ThemedText style={styles.btnText}>Delete</ThemedText>
-                </TouchableOpacity>
-              )}
-            </ThemedView>
-          </ThemedView>
-        )}
+        renderItem={({ item }) => {
+          const isOverdue = item.status !== 'COMPLETED' && item.deadline && new Date(item.deadline) < new Date();
+          const dot = statusColor(item.status);
+          return (
+            <View style={styles.card}>
+              <View style={styles.cardTopRow}>
+                <View style={[styles.statusDot, { backgroundColor: dot }]} />
+                <ThemedText style={styles.taskTitle}>{item.title}</ThemedText>
+              </View>
+              <ThemedText style={styles.meta}>{item.category} · {item.priority}</ThemedText>
+              <View style={styles.metaRow}>
+                <View style={styles.coinTag}>
+                  <Ionicons name="disc-outline" size={12} color={C.coin} />
+                  <ThemedText style={styles.coinText}>+{item.coinsReward}</ThemedText>
+                </View>
+                {item.deadline ? (
+                  <ThemedText style={[styles.meta, isOverdue && { color: C.danger, fontWeight: '700' }]}>
+                    {isOverdue ? 'Overdue · ' : ''}
+                    {new Date(item.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </ThemedText>
+                ) : null}
+              </View>
+              <View style={styles.actions}>
+                {!item.assignedToId && item.status === 'PENDING' && (
+                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: C.tint }]} onPress={() => handleClaim(item.id)}>
+                    <ThemedText style={styles.actionBtnTextDark}>Claim</ThemedText>
+                  </TouchableOpacity>
+                )}
+                {item.status === 'PENDING' && (
+                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: C.info }]} onPress={() => handleStart(item.id)}>
+                    <ThemedText style={styles.actionBtnText}>Start</ThemedText>
+                  </TouchableOpacity>
+                )}
+                {item.status === 'IN_PROGRESS' && (
+                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: C.success }]} onPress={() => handleComplete(item.id)}>
+                    <ThemedText style={styles.actionBtnText}>Mark Complete</ThemedText>
+                  </TouchableOpacity>
+                )}
+                {item.personal && (
+                  <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={() => handleDelete(item.id)}>
+                    <Ionicons name="trash-outline" size={14} color={C.danger} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          );
+        }}
         ListEmptyComponent={!loading ? <ThemedText style={styles.empty}>No tasks here</ThemedText> : null}
       />
 
       <Modal visible={showCreate} transparent animationType="fade" onRequestClose={() => setShowCreate(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <ScrollView>
-              <ThemedText style={{ fontSize: 16, fontWeight: '800', marginBottom: 2 }}>Add to MyNest</ThemedText>
-              <ThemedText style={{ fontSize: 12, opacity: 0.6, marginBottom: 14 }}>Private personal task</ThemedText>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <ThemedText style={styles.modalTitle}>Add to MyNest</ThemedText>
+              <ThemedText style={styles.modalSubtitle}>Private personal task</ThemedText>
               {createError ? <ThemedText style={styles.errorText}>{createError}</ThemedText> : null}
 
               <ThemedText style={styles.label}>Title *</ThemedText>
-              <TextInput style={styles.input} placeholder="What needs to be done?" placeholderTextColor="#888" value={form.title} onChangeText={(v) => setForm({ ...form, title: v })} />
+              <TextInput style={styles.input} placeholder="What needs to be done?" placeholderTextColor={C.textMuted} value={form.title} onChangeText={(v) => setForm({ ...form, title: v })} />
 
               <ThemedText style={styles.label}>Description</ThemedText>
-              <TextInput style={styles.input} placeholder="Optional details..." placeholderTextColor="#888" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} />
+              <TextInput style={styles.input} placeholder="Optional details..." placeholderTextColor={C.textMuted} value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} />
 
               <ThemedText style={styles.label}>Priority</ThemedText>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              <View style={styles.pickRow}>
                 {PRIORITIES.map((p) => (
                   <TouchableOpacity key={p} onPress={() => setForm({ ...form, priority: p })} style={[styles.pickChip, form.priority === p && styles.pickChipActive]}>
                     <ThemedText style={form.priority === p ? styles.tabTextActive : styles.tabText}>{p}</ThemedText>
@@ -204,7 +228,7 @@ export default function TasksScreen() {
               </View>
 
               <ThemedText style={styles.label}>Category</ThemedText>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              <View style={styles.pickRow}>
                 {CATEGORIES.map((c) => (
                   <TouchableOpacity key={c} onPress={() => setForm({ ...form, category: c })} style={[styles.pickChip, form.category === c && styles.pickChipActive]}>
                     <ThemedText style={form.category === c ? styles.tabTextActive : styles.tabText}>{c}</ThemedText>
@@ -213,15 +237,15 @@ export default function TasksScreen() {
               </View>
 
               <ThemedText style={styles.label}>Deadline (YYYY-MM-DD)</ThemedText>
-              <TextInput style={styles.input} placeholder="2026-07-15" placeholderTextColor="#888" value={form.deadline} onChangeText={(v) => setForm({ ...form, deadline: v })} />
+              <TextInput style={styles.input} placeholder="2026-07-15" placeholderTextColor={C.textMuted} value={form.deadline} onChangeText={(v) => setForm({ ...form, deadline: v })} />
 
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
+              <View style={styles.modalActions}>
                 <TouchableOpacity onPress={() => { setShowCreate(false); setCreateError(''); }} style={[styles.cancelBtn, { flex: 1 }]}>
-                  <ThemedText style={{ textAlign: 'center', fontWeight: '600' }}>Cancel</ThemedText>
+                  <ThemedText style={styles.cancelBtnText}>Cancel</ThemedText>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleCreateTask} style={[styles.addBtn, { flex: 2, alignItems: 'center' }]}>
-                  <ThemedText style={styles.addBtnText}>Add to Nest</ThemedText>
-                </TouchableOpacity>
+                <View style={{ flex: 2 }}>
+                  <PrimaryButton title="Add to Nest" onPress={handleCreateTask} />
+                </View>
               </View>
             </ScrollView>
           </View>
@@ -231,41 +255,45 @@ export default function TasksScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  title: { marginBottom: 12 },
-  filterRow: { marginBottom: 12, maxHeight: 40 },
-  filterChip: {
-    paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.06)', marginRight: 8,
-  },
-  filterChipActive: { backgroundColor: '#4F46E5' },
-  filterText: { fontSize: 13, opacity: 0.7 },
-  filterTextActive: { fontSize: 13, color: 'white', fontWeight: '600' },
-  card: { padding: 14, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.04)', marginBottom: 10 },
-  taskTitle: { fontSize: 16, fontWeight: '600' },
-  meta: { fontSize: 12, opacity: 0.6, marginTop: 4 },
-  actions: { flexDirection: 'row', gap: 10, marginTop: 10 },
-  claimBtn: { backgroundColor: '#F59E0B', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8 },
-  startBtn: { backgroundColor: '#3b82f6', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  addBtn: { backgroundColor: '#3b82f6', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8 },
-  addBtnText: { color: '#fff', fontWeight: '700', textAlign: 'center' },
-  tabRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  tabChip: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, backgroundColor: '#eee' },
-  tabChipActive: { backgroundColor: '#3b82f6' },
-  tabText: { color: '#333', fontWeight: '600', fontSize: 13 },
-  tabTextActive: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  deleteBtn: { backgroundColor: '#ef4444', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, marginLeft: 8 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalBox: { backgroundColor: '#fff', borderRadius: 14, padding: 20, maxHeight: '85%' },
-  label: { fontSize: 12, fontWeight: '700', marginTop: 12, marginBottom: 6, color: '#333' },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, fontSize: 14, color: '#000' },
-  pickChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, backgroundColor: '#eee', marginBottom: 4 },
-  pickChipActive: { backgroundColor: '#3b82f6' },
-  cancelBtn: { backgroundColor: '#eee', paddingVertical: 10, borderRadius: 8, justifyContent: 'center' },
-  errorText: { color: '#ef4444', fontSize: 12, marginBottom: 8 },
-  completeBtn: { backgroundColor: '#22C55E', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8 },
-  btnText: { color: 'white', fontWeight: '600', fontSize: 13 },
-  empty: { textAlign: 'center', marginTop: 40, opacity: 0.5 },
+const makeStyles = (C: typeof Colors.dark) => StyleSheet.create({
+  container: { flex: 1, paddingHorizontal: Spacing.md },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  addBtn: { paddingVertical: 10, paddingHorizontal: 16 },
+  tabRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
+  tabChip: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: Radius.full, backgroundColor: C.backgroundElevated, borderWidth: 1, borderColor: C.border },
+  tabChipActive: { backgroundColor: C.tint, borderColor: C.tint },
+  tabText: { color: C.textMuted, fontWeight: '600', fontSize: 13 },
+  tabTextActive: { color: '#0A0A0A', fontWeight: '700', fontSize: 13 },
+  filterRow: { marginBottom: Spacing.md, maxHeight: 40 },
+  filterChip: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: Radius.full, backgroundColor: C.backgroundElevated, borderWidth: 1, borderColor: C.border, marginRight: Spacing.sm },
+  filterChipActive: { backgroundColor: C.tint, borderColor: C.tint },
+  filterText: { fontSize: 12, color: C.textMuted, fontWeight: '600' },
+  filterTextActive: { fontSize: 12, color: '#0A0A0A', fontWeight: '700' },
+  card: { padding: Spacing.md, borderRadius: Radius.lg, backgroundColor: C.backgroundElevated, borderWidth: 1, borderColor: C.border, marginBottom: Spacing.sm },
+  cardTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  taskTitle: { fontSize: 15, fontWeight: '700', flex: 1 },
+  meta: { fontSize: 12, color: C.textMuted, marginTop: 2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
+  coinTag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  coinText: { fontSize: 12, fontWeight: '700', color: C.coin },
+  actions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
+  actionBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
+  actionBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  actionBtnTextDark: { color: '#0A0A0A', fontWeight: '700', fontSize: 13 },
+  deleteBtn: { backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', paddingHorizontal: 10 },
+  empty: { textAlign: 'center', marginTop: 40, color: C.textMuted },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: Spacing.lg },
+  modalBox: { backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: Radius.lg, padding: Spacing.lg, maxHeight: '85%' },
+  modalTitle: { fontSize: 16, fontWeight: '800', marginBottom: 2 },
+  modalSubtitle: { fontSize: 12, color: C.textMuted, marginBottom: Spacing.md },
+  label: { fontSize: 11, fontWeight: '700', marginTop: Spacing.sm, marginBottom: 6, color: C.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  input: { borderWidth: 1, borderColor: C.border, backgroundColor: C.backgroundElevated, borderRadius: Radius.md, paddingVertical: 10, paddingHorizontal: 12, fontSize: 14, color: C.text },
+  pickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  pickChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: Radius.full, backgroundColor: C.backgroundElevated, borderWidth: 1, borderColor: C.border, marginBottom: 4 },
+  pickChipActive: { backgroundColor: C.tint, borderColor: C.tint },
+  modalActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md, alignItems: 'center' },
+  cancelBtn: { backgroundColor: C.backgroundElevated, borderWidth: 1, borderColor: C.border, paddingVertical: 12, borderRadius: Radius.md, justifyContent: 'center' },
+  cancelBtnText: { textAlign: 'center', fontWeight: '600', color: C.textMuted },
+  errorText: { color: C.danger, fontSize: 12, marginBottom: 8 },
 });
