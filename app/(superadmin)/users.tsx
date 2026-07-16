@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, RefreshControl, StyleSheet, TouchableOpacity } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, TouchableOpacity } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useDialog } from '@/contexts/dialog-context';
 import { getSuperAdminUsers, deactivatePlatformUser, activatePlatformUser, removePlatformUser } from '@/lib/api';
 
 type PlatformUser = { id: string; fullName: string; email: string; role: string; status: 'ACTIVE' | 'DEACTIVATED' };
@@ -11,6 +12,7 @@ export default function UsersScreen() {
   const [users, setUsers] = useState<PlatformUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const dialog = useDialog();
 
   const loadUsers = useCallback(async () => {
     try {
@@ -32,12 +34,12 @@ export default function UsersScreen() {
       else await activatePlatformUser(user.id);
       setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, status: u.status === 'ACTIVE' ? 'DEACTIVATED' : 'ACTIVE' } : u)));
     } catch {
-      Alert.alert('Action failed', 'Could not update this user.');
+      dialog.alert('Action failed', 'Could not update this user.');
     }
   };
 
   const handleRemove = (user: PlatformUser) => {
-    Alert.alert('Remove user', `Remove ${user.fullName}? This cannot be undone.`, [
+    dialog.alert('Remove user', `Remove ${user.fullName}? This cannot be undone.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove', style: 'destructive',
@@ -46,7 +48,7 @@ export default function UsersScreen() {
             await removePlatformUser(user.id);
             setUsers((prev) => prev.filter((u) => u.id !== user.id));
           } catch {
-            Alert.alert('Action failed', 'Could not remove this user.');
+            dialog.alert('Action failed', 'Could not remove this user.');
           }
         },
       },

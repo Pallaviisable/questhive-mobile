@@ -1,34 +1,34 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ScrollView, View, TextInput, TouchableOpacity, Modal,
-  ActivityIndicator, StyleSheet, Alert, Image, Linking,
+  ActivityIndicator, StyleSheet, Image, Linking,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useDialog } from '@/contexts/dialog-context';
 import { useAuth } from '@/contexts/auth-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, Spacing, Radius } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   getGroupDetail, getGroupTasks, getTasksAssignedByMe, createGroupTask,
   updateTaskStatus, deleteTask, claimTask, editTask, denyTask, updateTaskPriority,
   addTaskComment, addSubtask, completeSubtask, addCommitmentPledge,
   requestBonusReview, flagBonus, getReviewStatus, getUserXP, getGroupSuggestions,
-  addTaskAttachment, removeTaskAttachment,
 } from '@/lib/api';
 
-const C = Colors.dark;
 const CATEGORIES = ['GROCERIES', 'HOME', 'SCHOOL', 'PERSONAL', 'WORK', 'OTHER'];
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
 const priorityColor: Record<string, string> = { LOW: '#22c55e', MEDIUM: '#f5c518', HIGH: '#ef4444' };
-const statusColor: Record<string, string> = { PENDING: '#a0a0a0', IN_PROGRESS: '#3b82f6', COMPLETED: '#22c55e' };
-const statusBg: Record<string, string> = { PENDING: 'rgba(160,160,160,0.12)', IN_PROGRESS: 'rgba(59,130,246,0.12)', COMPLETED: 'rgba(34,197,94,0.12)' };
+const statusColor: Record<string, string> = { PENDING: '#9ca3af', IN_PROGRESS: '#3b82f6', COMPLETED: '#22c55e' };
 
 const TITLE_TIERS = [
-  { frame: 'none', title: 'Newcomer', minLevel: 1, color: '#666' },
+  { frame: 'none', title: 'Newcomer', minLevel: 1, color: '#8a8a8a' },
   { frame: 'bronze', title: 'Task Starter', minLevel: 3, color: '#cd7f32' },
-  { frame: 'silver', title: 'Steady Worker', minLevel: 6, color: '#c0c0c0' },
+  { frame: 'silver', title: 'Steady Worker', minLevel: 6, color: '#b8bec5' },
   { frame: 'gold', title: 'Dedicated Bee', minLevel: 10, color: '#f5c518' },
   { frame: 'purple', title: 'Quest Champion', minLevel: 15, color: '#a855f7' },
   { frame: 'elite', title: 'Elite Bee', minLevel: 20, color: '#ef4444' },
@@ -39,30 +39,40 @@ function getTier(level = 1) {
   return t;
 }
 
-function Chip({ label, active, color = C.tint, icon, onPress }: any) {
+/* ---------- Shared small components (theme-aware) ---------- */
+function Tag({ text, color }: { text: string; color: string }) {
   return (
-    <TouchableOpacity onPress={onPress} style={{
-      flexDirection: 'row', alignItems: 'center', gap: 5,
-      paddingVertical: 6, paddingHorizontal: 12, borderRadius: Radius.full,
-      backgroundColor: active ? `${color}22` : C.backgroundElevated,
-      borderWidth: 1, borderColor: active ? `${color}66` : C.border, marginRight: 6, marginBottom: 6,
-    }}>
-      {icon && <Ionicons name={icon} size={12} color={active ? color : C.textMuted} />}
-      <ThemedText style={{ fontSize: 12, fontWeight: '700', color: active ? color : C.textMuted }}>{label}</ThemedText>
-    </TouchableOpacity>
-  );
-}
-
-function Badge({ text, color, bg, icon }: { text: string; color: string; bg?: string; icon?: any }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: Radius.full, backgroundColor: bg || `${color}22`, marginRight: 6, marginBottom: 4 }}>
-      {icon && <Ionicons name={icon} size={10} color={color} />}
-      <ThemedText style={{ fontSize: 10, fontWeight: '700', color }}>{text}</ThemedText>
+    <View style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, borderWidth: 1, borderRadius: Radius.sm, paddingHorizontal: 7, paddingVertical: 2.5, marginRight: 6, marginBottom: 4 }}>
+      <ThemedText style={{ fontSize: 9.5, fontWeight: '700', color, letterSpacing: 0.3 }}>{text}</ThemedText>
     </View>
   );
 }
 
-function CoinTag({ value, color = C.tint, prefix = '+' }: { value: number; color?: string; prefix?: string }) {
+function IconTag({ text, color, icon }: { text: string; color: string; icon: any }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: `${color}12`, borderColor: `${color}35`, borderWidth: 1, borderRadius: Radius.sm, paddingHorizontal: 7, paddingVertical: 2.5, marginRight: 6, marginBottom: 4 }}>
+      <Ionicons name={icon} size={10} color={color} />
+      <ThemedText style={{ fontSize: 9.5, fontWeight: '700', color }}>{text}</ThemedText>
+    </View>
+  );
+}
+
+function Chip({ label, active, color, icon, onPress, C }: any) {
+  const c = color || C.tint;
+  return (
+    <TouchableOpacity onPress={onPress} style={{
+      flexDirection: 'row', alignItems: 'center', gap: 5,
+      paddingVertical: 6, paddingHorizontal: 12, borderRadius: Radius.full,
+      backgroundColor: active ? `${c}18` : C.backgroundElevated,
+      borderWidth: 1, borderColor: active ? `${c}55` : C.border, marginRight: 6, marginBottom: 6,
+    }}>
+      {icon && <Ionicons name={icon} size={12} color={active ? c : C.textMuted} />}
+      <ThemedText style={{ fontSize: 12, fontWeight: '700', color: active ? c : C.textMuted }}>{label}</ThemedText>
+    </TouchableOpacity>
+  );
+}
+
+function CoinTag({ value, color, prefix = '+' }: { value: number; color: string; prefix?: string }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
       <Ionicons name="disc-outline" size={12} color={color} />
@@ -72,14 +82,15 @@ function CoinTag({ value, color = C.tint, prefix = '+' }: { value: number; color
 }
 
 /* ---------- Task Detail Modal ---------- */
-function TaskDetailModal({ task, user, xpMap, onClose, onRefresh }: any) {
+function TaskDetailModal({ task, user, xpMap, onClose, onRefresh, C, styles }: any) {
+  const dialog = useDialog();
   const [comments, setComments] = useState(task.comments || []);
   const [subtasks, setSubtasks] = useState(task.subtasks || []);
   const [pledge, setPledge] = useState(task.pledgeMessage || '');
   const [commentText, setCommentText] = useState('');
   const [subtaskTitle, setSubtaskTitle] = useState('');
   const [pledgeText, setPledgeText] = useState('');
-  const [tab, setTab] = useState<'SUBTASKS' | 'COMMENTS' | 'ATTACHMENTS' | 'PLEDGE' | 'REVIEW'>('SUBTASKS');
+  const [tab, setTab] = useState<'SUBTASKS' | 'COMMENTS' | 'PLEDGE' | 'REVIEW'>('SUBTASKS');
   const [saving, setSaving] = useState(false);
   const [reviewStatus, setReviewStatus] = useState<any>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
@@ -100,25 +111,25 @@ function TaskDetailModal({ task, user, xpMap, onClose, onRefresh }: any) {
     if (!commentText.trim()) return;
     setSaving(true);
     try { const res = await addTaskComment(task.id, { content: commentText.trim() }); setComments(res.data.comments || []); setCommentText(''); onRefresh(); }
-    catch { Alert.alert('Failed', 'Could not add comment'); }
+    catch { dialog.alert('Failed', 'Could not add comment'); }
     setSaving(false);
   };
   const handleAddSubtask = async () => {
     if (!subtaskTitle.trim()) return;
     setSaving(true);
     try { const res = await addSubtask(task.id, { title: subtaskTitle.trim() }); setSubtasks(res.data.subtasks || []); setSubtaskTitle(''); onRefresh(); }
-    catch { Alert.alert('Failed', 'Could not add subtask'); }
+    catch { dialog.alert('Failed', 'Could not add subtask'); }
     setSaving(false);
   };
   const handleCompleteSubtask = async (subtaskId: string) => {
     try { const res = await completeSubtask(task.id, subtaskId); setSubtasks(res.data.subtasks || []); onRefresh(); }
-    catch { Alert.alert('Failed', 'Could not complete subtask'); }
+    catch { dialog.alert('Failed', 'Could not complete subtask'); }
   };
   const handlePledge = async () => {
     if (!pledgeText.trim()) return;
     setSaving(true);
     try { await addCommitmentPledge(task.id, { message: pledgeText.trim() }); setPledge(pledgeText.trim()); setPledgeText(''); onRefresh(); }
-    catch { Alert.alert('Failed', 'Could not save pledge'); }
+    catch { dialog.alert('Failed', 'Could not save pledge'); }
     setSaving(false);
   };
   const handleRequestReview = async () => { setSaving(true); try { await requestBonusReview(task.id, task.bonusCoins || 0); await loadReviewStatus(); } catch {} setSaving(false); };
@@ -134,7 +145,6 @@ function TaskDetailModal({ task, user, xpMap, onClose, onRefresh }: any) {
   const tabs = [
     { key: 'SUBTASKS', label: `Subtasks${subtasks.length ? ` (${subtasks.length})` : ''}`, icon: 'list-outline' },
     { key: 'COMMENTS', label: `Comments${comments.length ? ` (${comments.length})` : ''}`, icon: 'chatbubble-outline' },
-    { key: 'ATTACHMENTS', label: `Files${(task.attachments || []).length ? ` (${(task.attachments || []).length})` : ''}`, icon: 'attach-outline' },
     ...(isAssignedToMe ? [{ key: 'PLEDGE', label: 'Pledge', icon: 'ribbon-outline' }] : []),
     ...(showReviewTab ? [{ key: 'REVIEW', label: 'Bonus Review', icon: 'scale-outline' }] : []),
   ];
@@ -143,13 +153,14 @@ function TaskDetailModal({ task, user, xpMap, onClose, onRefresh }: any) {
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={[styles.modalBox, { maxHeight: '88%' }]}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView>
             <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-              <Badge text={task.priority} color={priorityColor[task.priority]} />
-              <Badge text={task.status.replace('_', ' ')} color={statusColor[task.status]} bg={statusBg[task.status]} />
-              <Badge text={task.category} color={C.textMuted} bg={C.backgroundElevated} />
+              <Tag text={task.priority} color={priorityColor[task.priority]} />
+              <Tag text={task.status.replace('_', ' ')} color={statusColor[task.status]} />
+              <Tag text={task.category} color={C.textMuted} />
             </View>
-            <ThemedText style={{ fontSize: 18, fontWeight: '800' }}>{task.title}</ThemedText>
+            <ThemedText style={{ fontSize: 17, fontWeight: '700', color: C.text }}>{task.title}</ThemedText>
             {task.description ? <ThemedText style={{ color: C.textMuted, fontSize: 13, marginTop: 6, lineHeight: 18 }}>{task.description}</ThemedText> : null}
             <View style={{ flexDirection: 'row', gap: 16, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
               {task.deadline ? (
@@ -158,27 +169,27 @@ function TaskDetailModal({ task, user, xpMap, onClose, onRefresh }: any) {
                   <ThemedText style={{ fontSize: 12, color: C.textMuted }}>{new Date(task.deadline).toLocaleDateString()}</ThemedText>
                 </View>
               ) : null}
-              <CoinTag value={task.coinsReward} prefix="" />
+              <CoinTag value={task.coinsReward} color={C.tint} prefix="" />
               {task.assignedToId && assigneeTier.frame !== 'none' && (
-                <Badge text={`${assigneeTier.title} Lv.${assigneeLevel}`} color={assigneeTier.color} />
+                <Tag text={`${assigneeTier.title} Lv.${assigneeLevel}`} color={assigneeTier.color} />
               )}
             </View>
 
             {subtasks.length > 0 && (
               <View style={{ marginTop: 12 }}>
-                <View style={{ height: 6, backgroundColor: C.backgroundElevated, borderRadius: Radius.full, overflow: 'hidden' }}>
+                <View style={{ height: 5, backgroundColor: C.backgroundElevated2, borderRadius: Radius.full, overflow: 'hidden' }}>
                   <View style={{ height: '100%', width: `${subtaskProgress}%`, backgroundColor: C.success, borderRadius: Radius.full }} />
                 </View>
               </View>
             )}
 
             {pledge ? (
-              <View style={{ marginTop: 10, backgroundColor: 'rgba(168,85,247,0.1)', borderWidth: 1, borderColor: 'rgba(168,85,247,0.3)', borderRadius: 10, padding: 12 }}>
+              <View style={{ marginTop: 10, backgroundColor: 'rgba(168,85,247,0.08)', borderWidth: 1, borderColor: 'rgba(168,85,247,0.28)', borderRadius: Radius.md, padding: 12 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                   <Ionicons name="ribbon-outline" size={12} color="#a855f7" />
-                  <ThemedText style={{ fontSize: 11, color: '#a855f7', fontWeight: '800' }}>COMMITMENT PLEDGE</ThemedText>
+                  <ThemedText style={{ fontSize: 10.5, color: '#a855f7', fontWeight: '700', letterSpacing: 0.3 }}>COMMITMENT PLEDGE</ThemedText>
                 </View>
-                <ThemedText style={{ fontSize: 13, color: '#e9d5ff' }}>{pledge}</ThemedText>
+                <ThemedText style={{ fontSize: 13, color: C.text }}>{pledge}</ThemedText>
               </View>
             ) : null}
 
@@ -196,11 +207,11 @@ function TaskDetailModal({ task, user, xpMap, onClose, onRefresh }: any) {
                 <View style={{ gap: 8 }}>
                   {subtasks.length === 0 && <ThemedText style={{ color: C.textMuted, fontSize: 13, textAlign: 'center', padding: 16 }}>No subtasks yet.</ThemedText>}
                   {subtasks.map((s: any, i: number) => (
-                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, backgroundColor: C.backgroundElevated, borderRadius: 10 }}>
-                      <TouchableOpacity disabled={s.completed} onPress={() => handleCompleteSubtask(s.id)} style={{ width: 20, height: 20, borderRadius: 6, borderWidth: s.completed ? 0 : 2, borderColor: '#444', backgroundColor: s.completed ? C.success : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                    <View key={s.id ?? i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, backgroundColor: C.backgroundElevated2, borderRadius: Radius.sm, borderWidth: 1, borderColor: C.border }}>
+                      <TouchableOpacity disabled={s.completed} onPress={() => handleCompleteSubtask(s.id)} style={{ width: 20, height: 20, borderRadius: 6, borderWidth: s.completed ? 0 : 1.5, borderColor: C.border, backgroundColor: s.completed ? C.success : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
                         {s.completed ? <Ionicons name="checkmark" size={13} color="#fff" /> : null}
                       </TouchableOpacity>
-                      <ThemedText style={{ flex: 1, fontSize: 13, color: s.completed ? '#666' : C.text, textDecorationLine: s.completed ? 'line-through' : 'none' }}>{s.title}</ThemedText>
+                      <ThemedText style={{ flex: 1, fontSize: 13, color: s.completed ? C.textMuted : C.text, textDecorationLine: s.completed ? 'line-through' : 'none' }}>{s.title}</ThemedText>
                     </View>
                   ))}
                   {task.status !== 'COMPLETED' && (
@@ -218,10 +229,10 @@ function TaskDetailModal({ task, user, xpMap, onClose, onRefresh }: any) {
                   {comments.map((c: any, i: number) => {
                     const isMe = c.userId === user?.id;
                     return (
-                      <View key={i} style={{ alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                        <View style={{ maxWidth: '85%', backgroundColor: isMe ? 'rgba(245,197,24,0.1)' : C.backgroundElevated, borderWidth: 1, borderColor: isMe ? 'rgba(245,197,24,0.25)' : C.border, borderRadius: 12, padding: 10 }}>
+                      <View key={c.id ?? i} style={{ alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                        <View style={{ maxWidth: '85%', backgroundColor: isMe ? `${C.tint}12` : C.backgroundElevated2, borderWidth: 1, borderColor: isMe ? `${C.tint}30` : C.border, borderRadius: Radius.md, padding: 10 }}>
                           {!isMe && <ThemedText style={{ fontSize: 11, color: C.tint, fontWeight: '700', marginBottom: 3 }}>{c.authorName}</ThemedText>}
-                          <ThemedText style={{ fontSize: 13 }}>{c.content}</ThemedText>
+                          <ThemedText style={{ fontSize: 13, color: C.text }}>{c.content}</ThemedText>
                         </View>
                       </View>
                     );
@@ -233,25 +244,22 @@ function TaskDetailModal({ task, user, xpMap, onClose, onRefresh }: any) {
                 </View>
               )}
 
-              {tab === 'ATTACHMENTS' && (
-                <AttachmentsTab task={task} onRefresh={onRefresh} />
-              )}
 
               {tab === 'PLEDGE' && (
                 <View>
                   {pledge ? (
-                    <View style={{ backgroundColor: 'rgba(168,85,247,0.1)', borderWidth: 1, borderColor: 'rgba(168,85,247,0.3)', borderRadius: 12, padding: 16 }}>
+                    <View style={{ backgroundColor: 'rgba(168,85,247,0.08)', borderWidth: 1, borderColor: 'rgba(168,85,247,0.28)', borderRadius: Radius.md, padding: 16 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                         <Ionicons name="ribbon-outline" size={14} color="#a855f7" />
                         <ThemedText style={{ fontSize: 13, color: '#a855f7', fontWeight: '700' }}>Active Pledge</ThemedText>
                       </View>
-                      <ThemedText style={{ fontSize: 14, color: '#c4b5fd' }}>{pledge}</ThemedText>
+                      <ThemedText style={{ fontSize: 14, color: C.text }}>{pledge}</ThemedText>
                     </View>
                   ) : (
                     <View>
                       <ThemedText style={{ color: C.textMuted, fontSize: 13, marginBottom: 12 }}>Make a commitment pledge. Visible to all group members.</ThemedText>
                       <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top' }]} multiline placeholder="I commit to completing this task by..." placeholderTextColor={C.textMuted} value={pledgeText} onChangeText={setPledgeText} />
-                      <TouchableOpacity disabled={saving || !pledgeText.trim()} onPress={handlePledge} style={[styles.smallBtn, { marginTop: 10, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(168,85,247,0.2)' }]}>
+                      <TouchableOpacity disabled={saving || !pledgeText.trim()} onPress={handlePledge} style={[styles.smallBtn, { marginTop: 10, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(168,85,247,0.16)' }]}>
                         <Ionicons name="ribbon-outline" size={14} color="#a855f7" />
                         <ThemedText style={{ color: '#a855f7', fontWeight: '700', fontSize: 13 }}>Make Pledge</ThemedText>
                       </TouchableOpacity>
@@ -263,38 +271,38 @@ function TaskDetailModal({ task, user, xpMap, onClose, onRefresh }: any) {
               {tab === 'REVIEW' && (
                 <View style={{ gap: 14 }}>
                   <ThemedText style={{ color: C.textMuted, fontSize: 13 }}>Members can flag a bonus as disproportionate or request a review.</ThemedText>
-                  <View style={{ backgroundColor: C.backgroundElevated, borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(245,197,24,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-                      <Ionicons name="disc-outline" size={20} color={C.tint} />
+                  <View style={{ backgroundColor: C.backgroundElevated2, borderRadius: Radius.md, borderWidth: 1, borderColor: C.border, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{ width: 38, height: 38, borderRadius: Radius.sm, backgroundColor: `${C.tint}15`, alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="disc-outline" size={18} color={C.tint} />
                     </View>
                     <View>
                       <ThemedText style={{ fontSize: 12, color: C.textMuted }}>Bonus Coins Awarded</ThemedText>
-                      <ThemedText style={{ fontSize: 20, fontWeight: '900', color: C.tint }}>{task.bonusCoins || task.coinsReward || 0}</ThemedText>
+                      <ThemedText style={{ fontSize: 19, fontWeight: '800', color: C.tint }}>{task.bonusCoins || task.coinsReward || 0}</ThemedText>
                     </View>
                   </View>
                   {reviewLoading ? <ActivityIndicator color={C.tint} /> : (
                     <View style={{ gap: 10 }}>
                       {reviewStatus && (
-                        <View style={{ backgroundColor: C.backgroundElevated, borderRadius: 12, padding: 14 }}>
-                          <ThemedText style={{ fontSize: 11, color: C.textMuted, fontWeight: '700', marginBottom: 6 }}>REVIEW STATUS</ThemedText>
+                        <View style={{ backgroundColor: C.backgroundElevated2, borderRadius: Radius.md, borderWidth: 1, borderColor: C.border, padding: 14 }}>
+                          <ThemedText style={{ fontSize: 10.5, color: C.textMuted, fontWeight: '700', marginBottom: 6, letterSpacing: 0.3 }}>REVIEW STATUS</ThemedText>
                           <ThemedText style={{ fontWeight: '700', color: reviewStatus.status === 'FLAGGED' ? C.danger : C.tint }}>{reviewStatus.status}</ThemedText>
                           {reviewStatus.flagCount > 0 && (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 }}>
-                              <Ionicons name="flag-outline" size={12} color="#f87171" />
-                              <ThemedText style={{ fontSize: 12, color: '#f87171' }}>{reviewStatus.flagCount} member(s) flagged this bonus.</ThemedText>
+                              <Ionicons name="flag-outline" size={12} color={C.danger} />
+                              <ThemedText style={{ fontSize: 12, color: C.danger }}>{reviewStatus.flagCount} member(s) flagged this bonus.</ThemedText>
                             </View>
                           )}
                         </View>
                       )}
                       <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
                         {!isAssignedToMe && reviewStatus?.status !== 'FLAGGED' && (
-                          <TouchableOpacity disabled={saving} onPress={handleFlagBonus} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14 }}>
+                          <TouchableOpacity disabled={saving} onPress={handleFlagBonus} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: `${C.danger}10`, borderWidth: 1, borderColor: `${C.danger}30`, borderRadius: Radius.sm, paddingVertical: 10, paddingHorizontal: 14 }}>
                             <Ionicons name="flag-outline" size={14} color={C.danger} />
                             <ThemedText style={{ color: C.danger, fontWeight: '700', fontSize: 13 }}>Flag as Disproportionate</ThemedText>
                           </TouchableOpacity>
                         )}
                         {isAssignedToMe && reviewStatus?.status !== 'PENDING' && reviewStatus?.status !== 'APPROVED' && (
-                          <TouchableOpacity disabled={saving} onPress={handleRequestReview} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(245,197,24,0.1)', borderWidth: 1, borderColor: 'rgba(245,197,24,0.3)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14 }}>
+                          <TouchableOpacity disabled={saving} onPress={handleRequestReview} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: `${C.tint}10`, borderWidth: 1, borderColor: `${C.tint}30`, borderRadius: Radius.sm, paddingVertical: 10, paddingHorizontal: 14 }}>
                             <Ionicons name="chatbubble-ellipses-outline" size={14} color={C.tint} />
                             <ThemedText style={{ color: C.tint, fontWeight: '700', fontSize: 13 }}>Request Bonus Review</ThemedText>
                           </TouchableOpacity>
@@ -309,71 +317,14 @@ function TaskDetailModal({ task, user, xpMap, onClose, onRefresh }: any) {
           <TouchableOpacity onPress={onClose} style={{ alignSelf: 'flex-end', marginTop: 14 }}>
             <ThemedText style={{ color: C.textMuted, fontSize: 13, fontWeight: '600' }}>Close</ThemedText>
           </TouchableOpacity>
+          </KeyboardAvoidingView>
         </View>
       </View>
     </Modal>
   );
 }
 
-/* ---------- Attachments Tab ---------- */
-function AttachmentsTab({ task, onRefresh }: any) {
-  const [url, setUrl] = useState('');
-  const [saving, setSaving] = useState(false);
-  const attachments: string[] = task.attachments || [];
-
-  const isImage = (u: string) => /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(u);
-  const isPdf = (u: string) => /\.pdf$/i.test(u);
-
-  const handleAdd = async () => {
-    if (!url.trim()) return;
-    setSaving(true);
-    try { await addTaskAttachment(task.id, { url: url.trim() }); setUrl(''); onRefresh(); }
-    catch { Alert.alert('Failed', 'Could not add attachment'); }
-    setSaving(false);
-  };
-
-  const handleRemove = async (u: string) => {
-    try { await removeTaskAttachment(task.id, { url: u }); onRefresh(); }
-    catch { Alert.alert('Failed', 'Could not remove attachment'); }
-  };
-
-  return (
-    <View style={{ gap: 10 }}>
-      {attachments.length === 0 && (
-        <ThemedText style={{ color: C.textMuted, fontSize: 13, textAlign: 'center', padding: 20 }}>
-          No attachments yet. Add a URL or image link as evidence.
-        </ThemedText>
-      )}
-      {attachments.map((u, i) => (
-        <View key={i} style={{ backgroundColor: C.backgroundElevated, borderWidth: 1, borderColor: C.border, borderRadius: 10, overflow: 'hidden' }}>
-          {isImage(u) && (
-            <Image source={{ uri: u }} style={{ width: '100%', height: 140 }} resizeMode="cover" />
-          )}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 }}>
-            <Ionicons name={isImage(u) ? 'image-outline' : isPdf(u) ? 'document-text-outline' : 'link-outline'} size={16} color={C.textMuted} />
-            <TouchableOpacity onPress={() => Linking.openURL(u)} style={{ flex: 1 }}>
-              <ThemedText numberOfLines={1} style={{ color: '#3b82f6', fontSize: 12 }}>{u}</ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => handleRemove(u)}>
-              <Ionicons name="trash-outline" size={16} color={C.danger} />
-            </TouchableOpacity>
-          </View>
-        </View>
-      ))}
-      {task.status !== 'COMPLETED' && (
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-          <TextInput style={styles.input} placeholder="Paste image/file URL..." placeholderTextColor={C.textMuted} value={url} onChangeText={setUrl} autoCapitalize="none" />
-          <TouchableOpacity disabled={saving || !url.trim()} onPress={handleAdd} style={styles.smallBtn}>
-            <ThemedText style={styles.smallBtnText}>Add</ThemedText>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
-  );
-}
-
-/* ---------- Suggestions Modal ---------- */
-function SuggestionsModal({ suggestions, loading, onClose, onUse }: any) {
+function SuggestionsModal({ suggestions, loading, onClose, onUse, C, styles }: any) {
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
@@ -388,12 +339,12 @@ function SuggestionsModal({ suggestions, loading, onClose, onUse }: any) {
           ) : (
             <ScrollView style={{ maxHeight: 320 }}>
               {suggestions.map((s: any, i: number) => (
-                <View key={i} style={{ backgroundColor: C.backgroundElevated, borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                  <ThemedText style={{ fontWeight: '700', fontSize: 14, marginBottom: 4 }}>{s.title}</ThemedText>
+                <View key={i} style={{ backgroundColor: C.backgroundElevated2, borderWidth: 1, borderColor: C.border, borderRadius: Radius.md, padding: 14, marginBottom: 10 }}>
+                  <ThemedText style={{ fontWeight: '700', fontSize: 14, marginBottom: 4, color: C.text }}>{s.title}</ThemedText>
                   <ThemedText style={{ fontSize: 11, color: C.textMuted, marginBottom: 8 }}>{s.reason}</ThemedText>
                   <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
-                    <Badge text={s.category} color={C.tint} />
-                    <Badge text={s.priority} color="#3b82f6" />
+                    <Tag text={s.category} color={C.tint} />
+                    <Tag text={s.priority} color="#3b82f6" />
                   </View>
                   <TouchableOpacity onPress={() => onUse(s)} style={[styles.smallBtn, { alignSelf: 'flex-start' }]}><ThemedText style={styles.smallBtnText}>Use this</ThemedText></TouchableOpacity>
                 </View>
@@ -411,9 +362,13 @@ function SuggestionsModal({ suggestions, loading, onClose, onUse }: any) {
 
 /* ---------- Main Screen ---------- */
 export default function GroupTasksScreen() {
+  const scheme = useColorScheme() ?? 'dark';
+  const C = Colors[scheme];
+  const styles = makeStyles(C);
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const dialog = useDialog();
 
   const [tasks, setTasks] = useState<any[]>([]);
   const [group, setGroup] = useState<any>(null);
@@ -501,7 +456,7 @@ export default function GroupTasksScreen() {
 
   const handlePriorityChange = async (taskId: string, newPriority: string) => {
     try { await updateTaskPriority(taskId, newPriority); fetchData(); }
-    catch { Alert.alert('Failed', 'Could not update priority'); }
+    catch { dialog.alert('Failed', 'Could not update priority'); }
   };
 
   const openEditModal = (task: any) => {
@@ -537,59 +492,60 @@ export default function GroupTasksScreen() {
   return (
     <ThemedView style={styles.container}>
       <ScrollView contentContainerStyle={{ padding: Spacing.md, paddingTop: insets.top + Spacing.sm, paddingBottom: 60 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <View style={{ width: 40, height: 40, borderRadius: Radius.md, backgroundColor: 'rgba(34,197,94,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="checkbox-outline" size={20} color={C.success} />
-            </View>
-            <View>
-              <ThemedText type="title">Group Tasks</ThemedText>
-              <ThemedText style={{ color: C.textMuted, fontSize: 13 }}>{group?.name}</ThemedText>
-            </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <View style={styles.headerIcon}>
+            <Ionicons name="checkbox-outline" size={20} color={C.tint} />
           </View>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity onPress={handleLoadSuggestions} style={[styles.outlineBtn, { flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
-              <Ionicons name="bulb-outline" size={13} color={C.tint} />
-              <ThemedText style={{ fontSize: 12, color: C.tint, fontWeight: '600' }}>Suggestions</ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setShowCreate(true)} style={[styles.primaryBtn, { flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
-              <Ionicons name="add" size={14} color="#000" />
-              <ThemedText style={{ fontSize: 12, color: '#000', fontWeight: '700' }}>Assign Task</ThemedText>
-            </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <ThemedText style={styles.headerTitle}>Group Tasks</ThemedText>
+            <ThemedText style={styles.headerSubtitle}>{group?.name}</ThemedText>
           </View>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 18 }}>
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+          <TouchableOpacity onPress={handleLoadSuggestions} style={styles.outlineBtn}>
+            <Ionicons name="bulb-outline" size={13} color={C.tint} />
+            <ThemedText style={{ fontSize: 12, color: C.tint, fontWeight: '600' }}>Suggestions</ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowCreate(true)} style={styles.primaryBtn}>
+            <Ionicons name="add" size={14} color={C.background} />
+            <ThemedText style={{ fontSize: 12, color: C.background, fontWeight: '700' }}>Assign Task</ThemedText>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 18 }} contentContainerStyle={{ gap: 8 }}>
           {[
-            { label: 'Total', value: total, color: C.text, icon: 'list-outline' },
-            { label: 'Pending', value: pending, color: C.textMuted, icon: 'time-outline' },
-            { label: 'In Progress', value: inProg, color: '#3b82f6', icon: 'sync-outline' },
-            { label: 'Completed', value: completed, color: C.success, icon: 'checkmark-circle-outline' },
-            { label: 'Open', value: openCount, color: C.tint, icon: 'lock-open-outline' },
+            { label: 'Total', value: total, icon: 'list-outline' },
+            { label: 'Pending', value: pending, icon: 'time-outline' },
+            { label: 'In Progress', value: inProg, icon: 'sync-outline', color: '#3b82f6' },
+            { label: 'Completed', value: completed, icon: 'checkmark-circle-outline', color: C.success },
+            { label: 'Open', value: openCount, icon: 'lock-open-outline', color: C.tint },
           ].map((s) => (
-            <View key={s.label} style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 12, minWidth: 84, marginRight: 8 }}>
-              <Ionicons name={s.icon as any} size={14} color={s.color} style={{ marginBottom: 4 }} />
-              <ThemedText style={{ fontSize: 18, fontWeight: '800', color: s.color }}>{s.value}</ThemedText>
-              <ThemedText style={{ fontSize: 10, color: C.textMuted, fontWeight: '600' }}>{s.label}</ThemedText>
+            <View key={s.label} style={styles.statTile}>
+              <Ionicons name={s.icon as any} size={14} color={s.color || C.textMuted} style={{ marginBottom: 4 }} />
+              <ThemedText style={{ fontSize: 17, fontWeight: '800', color: s.color || C.text }}>{s.value}</ThemedText>
+              <ThemedText style={{ fontSize: 9.5, color: C.textMuted, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3 }}>{s.label}</ThemedText>
             </View>
           ))}
         </ScrollView>
 
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
-          <Chip label="By Me" icon="paper-plane-outline" active={view === 'ASSIGNED_BY_ME'} onPress={() => setView('ASSIGNED_BY_ME')} />
-          <Chip label="All" icon="eye-outline" active={view === 'ALL'} onPress={() => setView('ALL')} />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 }}>
+          <Chip label="By Me" icon="paper-plane-outline" active={view === 'ASSIGNED_BY_ME'} onPress={() => setView('ASSIGNED_BY_ME')} C={C} />
+          <Chip label="All" icon="eye-outline" active={view === 'ALL'} onPress={() => setView('ALL')} C={C} />
         </View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
           {['ALL', 'PENDING', 'IN_PROGRESS', 'COMPLETED'].map((s) => (
-            <Chip key={s} label={s.replace('_', ' ')} active={filterStatus === s} onPress={() => setFilterStatus(s)} />
+            <Chip key={s} label={s.replace('_', ' ')} active={filterStatus === s} onPress={() => setFilterStatus(s)} C={C} />
           ))}
-          <ThemedText style={{ fontSize: 11, color: C.textMuted, marginLeft: 'auto' }}>{filtered.length} of {tasks.length} tasks</ThemedText>
+          <ThemedText style={{ fontSize: 11, color: C.textMuted, marginLeft: 'auto' }}>{filtered.length} of {tasks.length}</ThemedText>
         </View>
 
         {filtered.length === 0 ? (
-          <View style={{ alignItems: 'center', padding: 60, backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, borderStyle: 'dashed' }}>
-            <Ionicons name="file-tray-outline" size={36} color={C.textMuted} style={{ marginBottom: 10 }} />
-            <ThemedText style={{ fontWeight: '700' }}>No tasks here</ThemedText>
+          <View style={styles.emptyWrap}>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons name="file-tray-outline" size={22} color={C.textMuted} />
+            </View>
+            <ThemedText style={{ fontWeight: '700', color: C.text, fontSize: 13.5 }}>No tasks here</ThemedText>
           </View>
         ) : (
           <View style={{ gap: 10 }}>
@@ -603,36 +559,30 @@ export default function GroupTasksScreen() {
               const { level: assigneeLevel, tier: assigneeTier } = getMemberXpInfo(task.assignedToId);
 
               return (
-                <View key={i} style={{ backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: isOpenTask ? 'rgba(245,197,24,0.4)' : C.border, overflow: 'hidden' }}>
+                <View key={task.id ?? i} style={[styles.taskCard, isOpenTask && { borderColor: `${C.tint}45` }]}>
                   {isOpenTask && (
-                    <View style={{ backgroundColor: 'rgba(245,197,24,0.12)', paddingVertical: 6, paddingHorizontal: 14, borderBottomWidth: 1, borderColor: 'rgba(245,197,24,0.2)', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={styles.openTaskBar}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                         <Ionicons name="lock-open-outline" size={12} color={C.tint} />
                         <ThemedText style={{ fontSize: 11, fontWeight: '700', color: C.tint }}>Open Task — Anyone can claim</ThemedText>
                       </View>
-                      {task.openTaskBonus && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(34,197,94,0.15)', borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 2 }}>
-                          <Ionicons name="star-outline" size={10} color={C.success} />
-                          <ThemedText style={{ fontSize: 10, fontWeight: '700', color: C.success }}>Bonus</ThemedText>
-                        </View>
-                      )}
+                      {task.openTaskBonus && <IconTag icon="star-outline" text="Bonus" color={C.success} />}
                     </View>
                   )}
                   <View style={{ padding: 16 }}>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-                      <ThemedText style={{ fontSize: 14, fontWeight: '700', flex: 1 }}>{task.title}</ThemedText>
-                    </View>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                    <ThemedText style={{ fontSize: 14, fontWeight: '700', color: C.text, marginBottom: 6 }}>{task.title}</ThemedText>
+
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
                       {isAdmin && task.status !== 'COMPLETED' ? (
                         PRIORITIES.map((p) => (
                           <TouchableOpacity key={p} onPress={() => handlePriorityChange(task.id, p)} style={{ opacity: task.priority === p ? 1 : 0.4 }}>
-                            <Badge text={p} color={priorityColor[p]} />
+                            <Tag text={p} color={priorityColor[p]} />
                           </TouchableOpacity>
                         ))
                       ) : (
-                        <Badge text={task.priority} color={priorityColor[task.priority]} />
+                        <Tag text={task.priority} color={priorityColor[task.priority]} />
                       )}
-                      <Badge text={task.status.replace('_', ' ')} color={statusColor[task.status]} bg={statusBg[task.status]} />
+                      <Tag text={task.status.replace('_', ' ')} color={statusColor[task.status]} />
                     </View>
 
                     {task.description ? <ThemedText style={{ color: C.textMuted, fontSize: 12, marginBottom: 8 }}>{task.description}</ThemedText> : null}
@@ -642,7 +592,7 @@ export default function GroupTasksScreen() {
                         <Ionicons name="person-outline" size={12} color={C.textMuted} />
                         <ThemedText style={{ fontSize: 11, color: C.textMuted }}>{getMemberName(task.assignedToId)}</ThemedText>
                       </View>
-                      {task.assignedToId && assigneeTier.frame !== 'none' && <Badge text={`${assigneeTier.title} Lv.${assigneeLevel}`} color={assigneeTier.color} />}
+                      {task.assignedToId && assigneeTier.frame !== 'none' && <Tag text={`${assigneeTier.title} Lv.${assigneeLevel}`} color={assigneeTier.color} />}
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                         <Ionicons name="folder-outline" size={12} color={C.textMuted} />
                         <ThemedText style={{ fontSize: 11, color: C.textMuted }}>{task.category}</ThemedText>
@@ -653,30 +603,32 @@ export default function GroupTasksScreen() {
                           <ThemedText style={{ fontSize: 11, color: C.textMuted }}>{new Date(task.deadline).toLocaleDateString()}</ThemedText>
                         </View>
                       ) : null}
-                      <CoinTag value={task.coinsReward} prefix="" />
+                      <CoinTag value={task.coinsReward} color={C.tint} prefix="" />
                     </View>
 
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 }}>
-                      {hasSubtasks && <Badge icon="list-outline" text={`${(task.subtasks || []).filter((s: any) => s.completed).length}/${(task.subtasks || []).length}`} color="#3b82f6" />}
-                      {hasComments && <Badge icon="chatbubble-outline" text={`${(task.comments || []).length}`} color={C.success} />}
-                      {hasPledge && <Badge icon="ribbon-outline" text="pledged" color="#a855f7" />}
-                    </View>
+                    {(hasSubtasks || hasComments || hasPledge) && (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 }}>
+                        {hasSubtasks && <IconTag icon="list-outline" text={`${(task.subtasks || []).filter((s: any) => s.completed).length}/${(task.subtasks || []).length}`} color="#3b82f6" />}
+                        {hasComments && <IconTag icon="chatbubble-outline" text={`${(task.comments || []).length}`} color={C.success} />}
+                        {hasPledge && <IconTag icon="ribbon-outline" text="pledged" color="#a855f7" />}
+                      </View>
+                    )}
 
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                       <TouchableOpacity onPress={() => setSelectedTask(task)} style={styles.tinyOutline}><ThemedText style={{ fontSize: 12, color: C.tint, fontWeight: '600' }}>Details</ThemedText></TouchableOpacity>
                       {isOpenTask && !isCreator && (
-                        <TouchableOpacity onPress={() => claimTask(task.id).then(fetchData)} style={[styles.tinyPrimary, { flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
-                          <Ionicons name="hand-left-outline" size={12} color="#000" />
-                          <ThemedText style={{ fontSize: 12, color: '#000', fontWeight: '700' }}>Claim</ThemedText>
+                        <TouchableOpacity onPress={() => claimTask(task.id).then(fetchData)} style={styles.tinyPrimary}>
+                          <Ionicons name="hand-left-outline" size={12} color={C.background} />
+                          <ThemedText style={{ fontSize: 12, color: C.background, fontWeight: '700' }}>Claim</ThemedText>
                         </TouchableOpacity>
                       )}
                       {isAssignedToMe && task.status === 'PENDING' && (
                         <TouchableOpacity onPress={() => updateTaskStatus(task.id, 'IN_PROGRESS').then(fetchData)} style={styles.tinyOutline}><ThemedText style={{ fontSize: 12, color: C.tint, fontWeight: '600' }}>Start</ThemedText></TouchableOpacity>
                       )}
                       {isAssignedToMe && task.status === 'IN_PROGRESS' && (
-                        <TouchableOpacity onPress={() => updateTaskStatus(task.id, 'COMPLETED').then(fetchData)} style={[styles.tinyPrimary, { flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
-                          <Ionicons name="checkmark-circle-outline" size={13} color="#000" />
-                          <ThemedText style={{ fontSize: 12, color: '#000', fontWeight: '700' }}>Done</ThemedText>
+                        <TouchableOpacity onPress={() => updateTaskStatus(task.id, 'COMPLETED').then(fetchData)} style={styles.tinyPrimary}>
+                          <Ionicons name="checkmark-circle-outline" size={13} color={C.background} />
+                          <ThemedText style={{ fontSize: 12, color: C.background, fontWeight: '700' }}>Done</ThemedText>
                         </TouchableOpacity>
                       )}
                       {isAssignedToMe && task.status !== 'COMPLETED' && (
@@ -698,7 +650,7 @@ export default function GroupTasksScreen() {
       </ScrollView>
 
       {selectedTask && (
-        <TaskDetailModal task={selectedTask} user={user} xpMap={xpMap} onClose={() => setSelectedTask(null)} onRefresh={() => { fetchData(); setSelectedTask(null); }} />
+        <TaskDetailModal task={selectedTask} user={user} xpMap={xpMap} onClose={() => setSelectedTask(null)} onRefresh={() => { fetchData(); setSelectedTask(null); }} C={C} styles={styles} />
       )}
 
       {showSuggestions && (
@@ -706,10 +658,10 @@ export default function GroupTasksScreen() {
           suggestions={suggestions} loading={suggestionsLoading}
           onClose={() => setShowSuggestions(false)}
           onUse={(s: any) => { setForm((f) => ({ ...f, title: s.title, category: s.category, priority: s.priority })); setShowSuggestions(false); setShowCreate(true); }}
+          C={C} styles={styles}
         />
       )}
 
-      {/* Assign Task Modal */}
       <Modal visible={showCreate} transparent animationType="fade" onRequestClose={() => setShowCreate(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -726,9 +678,9 @@ export default function GroupTasksScreen() {
 
               <ThemedText style={styles.label}>Assign To</ThemedText>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                <Chip label="Open Task" icon="lock-open-outline" active={!form.assignedToId} onPress={() => setForm({ ...form, assignedToId: '' })} />
+                <Chip label="Open Task" icon="lock-open-outline" active={!form.assignedToId} onPress={() => setForm({ ...form, assignedToId: '' })} C={C} />
                 {group?.members?.map((m: any) => (
-                  <Chip key={m.id ?? m._id} label={m.fullName} active={form.assignedToId === (m.id ?? m._id)} onPress={() => setForm({ ...form, assignedToId: m.id ?? m._id })} />
+                  <Chip key={m.id ?? m._id} label={m.fullName} active={form.assignedToId === (m.id ?? m._id)} onPress={() => setForm({ ...form, assignedToId: m.id ?? m._id })} C={C} />
                 ))}
               </View>
 
@@ -737,12 +689,12 @@ export default function GroupTasksScreen() {
 
               <ThemedText style={styles.label}>Priority</ThemedText>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                {PRIORITIES.map((p) => <Chip key={p} label={p} active={form.priority === p} color={priorityColor[p]} onPress={() => setForm({ ...form, priority: p })} />)}
+                {PRIORITIES.map((p) => <Chip key={p} label={p} active={form.priority === p} color={priorityColor[p]} onPress={() => setForm({ ...form, priority: p })} C={C} />)}
               </View>
 
               <ThemedText style={styles.label}>Category</ThemedText>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                {CATEGORIES.map((c) => <Chip key={c} label={c} active={form.category === c} onPress={() => setForm({ ...form, category: c })} />)}
+                {CATEGORIES.map((c) => <Chip key={c} label={c} active={form.category === c} onPress={() => setForm({ ...form, category: c })} C={C} />)}
               </View>
 
               <ThemedText style={styles.label}>Deadline (YYYY-MM-DD)</ThemedText>
@@ -752,10 +704,10 @@ export default function GroupTasksScreen() {
               <TextInput style={styles.input} placeholder="0" placeholderTextColor={C.textMuted} keyboardType="numeric" value={form.bonusCoins} onChangeText={(v) => setForm({ ...form, bonusCoins: v })} />
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
-                <TouchableOpacity onPress={() => { setShowCreate(false); setError(''); }} style={[styles.outlineBtn, { flex: 1, alignItems: 'center' }]}><ThemedText style={{ color: C.textMuted, fontWeight: '600' }}>Cancel</ThemedText></TouchableOpacity>
-                <TouchableOpacity onPress={handleCreate} style={[styles.primaryBtn, { flex: 2, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }]}>
-                  <Ionicons name="checkmark" size={15} color="#000" />
-                  <ThemedText style={{ color: '#000', fontWeight: '700' }}>Assign Task</ThemedText>
+                <TouchableOpacity onPress={() => { setShowCreate(false); setError(''); }} style={[styles.outlineBtn, { flex: 1, justifyContent: 'center' }]}><ThemedText style={{ color: C.textMuted, fontWeight: '600' }}>Cancel</ThemedText></TouchableOpacity>
+                <TouchableOpacity onPress={handleCreate} style={[styles.primaryBtn, { flex: 2, justifyContent: 'center' }]}>
+                  <Ionicons name="checkmark" size={15} color={C.background} />
+                  <ThemedText style={{ color: C.background, fontWeight: '700' }}>Assign Task</ThemedText>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -763,7 +715,6 @@ export default function GroupTasksScreen() {
         </View>
       </Modal>
 
-      {/* Edit Task Modal */}
       <Modal visible={!!editingTask} transparent animationType="fade" onRequestClose={() => setEditingTask(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -775,27 +726,27 @@ export default function GroupTasksScreen() {
               {editError ? <View style={styles.errBox}><ThemedText style={{ color: C.danger, fontSize: 12 }}>{editError}</ThemedText></View> : null}
 
               <ThemedText style={styles.label}>Title *</ThemedText>
-              <TextInput style={styles.input} value={editForm.title} onChangeText={(v) => setEditForm({ ...editForm, title: v })} />
+              <TextInput style={styles.input} value={editForm.title} onChangeText={(v) => setEditForm({ ...editForm, title: v })} placeholderTextColor={C.textMuted} />
 
               <ThemedText style={styles.label}>Description</ThemedText>
-              <TextInput style={styles.input} value={editForm.description} onChangeText={(v) => setEditForm({ ...editForm, description: v })} />
+              <TextInput style={styles.input} value={editForm.description} onChangeText={(v) => setEditForm({ ...editForm, description: v })} placeholderTextColor={C.textMuted} />
 
               <ThemedText style={styles.label}>Priority</ThemedText>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                {PRIORITIES.map((p) => <Chip key={p} label={p} active={editForm.priority === p} color={priorityColor[p]} onPress={() => setEditForm({ ...editForm, priority: p })} />)}
+                {PRIORITIES.map((p) => <Chip key={p} label={p} active={editForm.priority === p} color={priorityColor[p]} onPress={() => setEditForm({ ...editForm, priority: p })} C={C} />)}
               </View>
 
               <ThemedText style={styles.label}>Category</ThemedText>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                {CATEGORIES.map((c) => <Chip key={c} label={c} active={editForm.category === c} onPress={() => setEditForm({ ...editForm, category: c })} />)}
+                {CATEGORIES.map((c) => <Chip key={c} label={c} active={editForm.category === c} onPress={() => setEditForm({ ...editForm, category: c })} C={C} />)}
               </View>
 
               <ThemedText style={styles.label}>Deadline (YYYY-MM-DD)</ThemedText>
-              <TextInput style={styles.input} value={editForm.deadline} onChangeText={(v) => setEditForm({ ...editForm, deadline: v })} />
+              <TextInput style={styles.input} value={editForm.deadline} onChangeText={(v) => setEditForm({ ...editForm, deadline: v })} placeholderTextColor={C.textMuted} />
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
-                <TouchableOpacity onPress={() => setEditingTask(null)} style={[styles.outlineBtn, { flex: 1, alignItems: 'center' }]}><ThemedText style={{ color: C.textMuted, fontWeight: '600' }}>Cancel</ThemedText></TouchableOpacity>
-                <TouchableOpacity onPress={handleEdit} style={[styles.primaryBtn, { flex: 2, alignItems: 'center' }]}><ThemedText style={{ color: '#000', fontWeight: '700' }}>Save Changes</ThemedText></TouchableOpacity>
+                <TouchableOpacity onPress={() => setEditingTask(null)} style={[styles.outlineBtn, { flex: 1, justifyContent: 'center' }]}><ThemedText style={{ color: C.textMuted, fontWeight: '600' }}>Cancel</ThemedText></TouchableOpacity>
+                <TouchableOpacity onPress={handleEdit} style={[styles.primaryBtn, { flex: 2, justifyContent: 'center' }]}><ThemedText style={{ color: C.background, fontWeight: '700' }}>Save Changes</ThemedText></TouchableOpacity>
               </View>
             </ScrollView>
           </View>
@@ -805,19 +756,32 @@ export default function GroupTasksScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (C: typeof Colors.dark) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
+
+  headerIcon: { width: 42, height: 42, borderRadius: Radius.md, backgroundColor: C.backgroundElevated, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: '700', letterSpacing: -0.3, color: C.text },
+  headerSubtitle: { fontSize: 12.5, color: C.textMuted, marginTop: 2 },
+
+  statTile: { backgroundColor: C.backgroundElevated, borderWidth: 1, borderColor: C.border, borderRadius: Radius.md, padding: 12, minWidth: 84 },
+
+  taskCard: { backgroundColor: C.backgroundElevated, borderRadius: Radius.md, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
+  openTaskBar: { backgroundColor: `${C.tint}12`, paddingVertical: 6, paddingHorizontal: 14, borderBottomWidth: 1, borderColor: `${C.tint}25`, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+
+  emptyWrap: { alignItems: 'center', padding: 48, backgroundColor: C.backgroundElevated, borderRadius: Radius.md, borderWidth: 1, borderColor: C.border, borderStyle: 'dashed' },
+  emptyIconCircle: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: C.backgroundElevated2, borderWidth: 1, borderColor: C.border, marginBottom: 10 },
+
   label: { fontSize: 11, fontWeight: '700', color: C.textMuted, marginTop: 14, marginBottom: 6, textTransform: 'uppercase' },
-  input: { flex: 1, backgroundColor: C.backgroundElevated, borderWidth: 1, borderColor: C.border, borderRadius: 10, color: C.text, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13 },
-  primaryBtn: { backgroundColor: C.tint, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14, justifyContent: 'center' },
-  outlineBtn: { borderWidth: 1, borderColor: C.tint, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14, justifyContent: 'center' },
-  smallBtn: { backgroundColor: C.tint, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14 },
-  smallBtnText: { color: '#000', fontWeight: '700', fontSize: 13 },
-  tinyOutline: { borderWidth: 1, borderColor: 'rgba(245,197,24,0.3)', backgroundColor: 'rgba(245,197,24,0.1)', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10 },
-  tinyPrimary: { backgroundColor: C.tint, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10 },
-  tinyDanger: { borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10 },
-  tinyInfo: { borderWidth: 1, borderColor: 'rgba(59,130,246,0.3)', backgroundColor: 'rgba(59,130,246,0.1)', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10 },
-  errBox: { backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: C.danger, borderRadius: 8, padding: 10, marginBottom: 12 },
+  input: { flex: 1, backgroundColor: C.backgroundElevated2, borderWidth: 1, borderColor: C.border, borderRadius: Radius.sm, color: C.text, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13 },
+  primaryBtn: { backgroundColor: C.tint, borderRadius: Radius.sm, paddingVertical: 8, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  outlineBtn: { borderWidth: 1, borderColor: C.tint, borderRadius: Radius.sm, paddingVertical: 8, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  smallBtn: { backgroundColor: C.tint, borderRadius: Radius.sm, paddingVertical: 8, paddingHorizontal: 14 },
+  smallBtnText: { color: C.background, fontWeight: '700', fontSize: 13 },
+  tinyOutline: { borderWidth: 1, borderColor: `${C.tint}35`, backgroundColor: `${C.tint}10`, borderRadius: Radius.sm, paddingVertical: 6, paddingHorizontal: 10 },
+  tinyPrimary: { backgroundColor: C.tint, borderRadius: Radius.sm, paddingVertical: 6, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  tinyDanger: { borderWidth: 1, borderColor: `${C.danger}30`, backgroundColor: `${C.danger}10`, borderRadius: Radius.sm, paddingVertical: 6, paddingHorizontal: 10 },
+  tinyInfo: { borderWidth: 1, borderColor: 'rgba(59,130,246,0.3)', backgroundColor: 'rgba(59,130,246,0.1)', borderRadius: Radius.sm, paddingVertical: 6, paddingHorizontal: 10 },
+  errBox: { backgroundColor: `${C.danger}10`, borderWidth: 1, borderColor: C.danger, borderRadius: Radius.sm, padding: 10, marginBottom: 12 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 16 },
-  modalBox: { backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, padding: 22, width: '100%', maxWidth: 480, maxHeight: '85%' },
+  modalBox: { backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: Radius.lg, padding: 22, width: '100%', maxWidth: 480, maxHeight: '85%' },
 });

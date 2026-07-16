@@ -6,9 +6,9 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
-import { FeedbackButton } from '@/components/feedback-button';
 import { View } from 'react-native';
 import { ThemeProvider, useAppTheme } from '@/contexts/theme-context';
+import { DialogProvider } from '@/contexts/dialog-context';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -42,7 +42,6 @@ function RootNavigator() {
         </Stack.Protected>
         <Stack.Screen name="invite/[token]" options={{ headerShown: false }} />
       </Stack>
-      {isAuthenticated && !isSuperAdmin && <FeedbackButton />}
     </View>
   );
 }
@@ -51,8 +50,10 @@ function ThemedApp() {
   const { scheme } = useAppTheme();
   return (
     <NavThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <RootNavigator />
-      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+      <DialogProvider>
+        <RootNavigator />
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+      </DialogProvider>
     </NavThemeProvider>
   );
 }

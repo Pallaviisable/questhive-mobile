@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, Modal, RefreshControl, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, RefreshControl, ScrollView, StyleSheet, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useDialog } from '@/contexts/dialog-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCountUp } from '@/hooks/use-count-up';
 import {
@@ -22,7 +23,7 @@ type RewardEntry = {
 
 type Group = { id: string; name: string };
 type RedeemOpt = { id: string; title: string; description?: string; coinsRequired: number };
-type RedeemHist = { id: string; optionTitle?: string; coinsSpent: number; redeemedAt: string };
+type RedeemHist = { id: string; optionTitle?: string; description?: string; coinsSpent?: number; coinsEarned?: number; redeemedAt: string };
 
 const MIN_COINS = 50;
 
@@ -37,6 +38,7 @@ export default function RewardsScreen() {
   const scheme = useColorScheme() ?? 'dark';
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
+  const dialog = useDialog();
 
   const [coins, setCoins] = useState<number | null>(null);
   const [history, setHistory] = useState<RewardEntry[]>([]);
@@ -64,7 +66,7 @@ export default function RewardsScreen() {
       }
     } catch (err) {
       console.error('Failed to load rewards', err);
-      Alert.alert('Error', 'Could not load your coins right now.');
+      dialog.alert('Error', 'Could not load your coins right now.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -87,8 +89,8 @@ export default function RewardsScreen() {
   useEffect(() => { loadRedeemData(); }, [loadRedeemData]);
 
   const handleRedeem = async (optId: string, cost: number, title: string) => {
-    if ((coins ?? 0) < cost) { Alert.alert('Not enough coins', 'Keep completing tasks!'); return; }
-    Alert.alert('Redeem reward', `Spend ${cost} coins on "${title}"?`, [
+    if ((coins ?? 0) < cost) { dialog.alert('Not enough coins', 'Keep completing tasks!'); return; }
+    dialog.alert('Redeem reward', `Spend ${cost} coins on "${title}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Redeem', onPress: async () => {
@@ -97,7 +99,7 @@ export default function RewardsScreen() {
             loadData();
             loadRedeemData();
           } catch (err: any) {
-            Alert.alert('Failed', err?.response?.data?.message || 'Redemption failed.');
+            dialog.alert('Failed', err?.response?.data?.message || 'Redemption failed.');
           }
         },
       },
@@ -120,7 +122,7 @@ export default function RewardsScreen() {
   };
 
   const handleDeleteOption = async (id: string) => {
-    Alert.alert('Delete option', 'Delete this redeem option?', [
+    dialog.alert('Delete option', 'Delete this redeem option?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive', onPress: async () => {
@@ -128,7 +130,7 @@ export default function RewardsScreen() {
             await deleteRedeemOption(id);
             setRedeemOptions((prev) => prev.filter((o) => o.id !== id));
           } catch {
-            Alert.alert('Failed', 'Could not delete this option.');
+            dialog.alert('Failed', 'Could not delete this option.');
           }
         },
       },
@@ -136,6 +138,7 @@ export default function RewardsScreen() {
   };
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={{ paddingHorizontal: Spacing.md, paddingTop: insets.top + Spacing.sm }}>
         <ThemedText type="title" style={{ marginBottom: Spacing.sm }}>Rewards</ThemedText>
@@ -143,7 +146,7 @@ export default function RewardsScreen() {
           <View style={[styles.coinIconCircle, { backgroundColor: 'rgba(245,197,24,0.15)' }]}>
             <Ionicons name="disc-outline" size={26} color={colors.coin} />
           </View>
-          <ThemedText style={[styles.coinLabel, { color: colors.textMuted }]}>Your Coins</ThemedText>
+          <ThemedText style={[styles.coinLabel, { color: colors.text }]}>Your Coins</ThemedText>
           <ThemedText style={[styles.coinValue, { color: colors.coin }]}>{loading ? '...' : animatedCoins}</ThemedText>
         </View>
 
@@ -206,24 +209,26 @@ export default function RewardsScreen() {
                     <Ionicons name={getRewardIcon(item.title) as any} size={22} color={colors.coin} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <ThemedText style={styles.optTitle}>{item.title}</ThemedText>
-                    {item.description ? <ThemedText style={[styles.optDesc, { color: colors.textMuted }]}>{item.description}</ThemedText> : null}
-                    <View style={[styles.costPill, { backgroundColor: 'rgba(245,197,24,0.15)', borderColor: 'rgba(245,197,24,0.35)' }]}>
-                      <Ionicons name="disc-outline" size={11} color={colors.coin} />
-                      <ThemedText style={[styles.costPillText, { color: colors.coin }]}>{item.coinsRequired}</ThemedText>
+                    <View style={styles.optHeaderRow}>
+                      <ThemedText style={[styles.optTitle, { flexShrink: 1 }]} numberOfLines={1}>{item.title}</ThemedText>
+                      <View style={[styles.costPill, { backgroundColor: 'rgba(245,197,24,0.15)', borderColor: 'rgba(245,197,24,0.35)' }]}>
+                        <Ionicons name="disc-outline" size={11} color={colors.coin} />
+                        <ThemedText style={[styles.costPillText, { color: colors.coin }]}>{item.coinsRequired}</ThemedText>
+                      </View>
                     </View>
-                  </View>
-                  <View style={{ alignItems: 'flex-end', gap: 8 }}>
-                    <TouchableOpacity
-                      style={[styles.redeemBtn, { backgroundColor: canAfford ? colors.tint : colors.backgroundElevated2, borderWidth: canAfford ? 0 : 1, borderColor: colors.border }]}
-                      disabled={!canAfford}
-                      onPress={() => handleRedeem(item.id, item.coinsRequired, item.title)}>
-                      {!canAfford && <Ionicons name="lock-closed-outline" size={12} color={colors.textMuted} style={{ marginRight: 4 }} />}
-                      <ThemedText style={{ color: canAfford ? '#0A0A0A' : colors.textMuted, fontWeight: '700', fontSize: 13 }}>{canAfford ? 'Redeem' : 'Locked'}</ThemedText>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDeleteOption(item.id)}>
-                      <ThemedText style={[styles.deleteLink, { color: colors.danger }]}>Delete</ThemedText>
-                    </TouchableOpacity>
+                    {item.description ? <ThemedText style={[styles.optDesc, { color: colors.textMuted }]} numberOfLines={2}>{item.description}</ThemedText> : null}
+                    <View style={styles.optFooterRow}>
+                      <TouchableOpacity
+                        style={[styles.redeemBtn, { backgroundColor: canAfford ? colors.tint : colors.backgroundElevated2, borderWidth: canAfford ? 0 : 1, borderColor: colors.border }]}
+                        disabled={!canAfford}
+                        onPress={() => handleRedeem(item.id, item.coinsRequired, item.title)}>
+                        {!canAfford && <Ionicons name="lock-closed-outline" size={12} color={colors.textMuted} style={{ marginRight: 4 }} />}
+                        <ThemedText style={{ color: canAfford ? '#0A0A0A' : colors.textMuted, fontWeight: '700', fontSize: 13 }}>{canAfford ? 'Redeem' : 'Locked'}</ThemedText>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.deleteIconBtn} onPress={() => handleDeleteOption(item.id)}>
+                        <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               );
@@ -264,13 +269,13 @@ export default function RewardsScreen() {
               {redeemHistory.length === 0 ? (
                 <ThemedText style={[styles.empty, { color: colors.textMuted }]}>No redemptions yet</ThemedText>
               ) : (
-                redeemHistory.map((r) => (
-                  <View key={r.id} style={[styles.historyRow, { borderBottomColor: colors.border }]}>
+                redeemHistory.map((r, i) => (
+                  <View key={r.id ?? `redeem-${i}`} style={[styles.historyRow, { borderBottomColor: colors.border }]}>
                     <View style={[styles.historyIconCircle, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
                       <Ionicons name="gift-outline" size={14} color={colors.danger} />
                     </View>
-                    <ThemedText style={styles.reason}>{r.optionTitle || 'Redeemed reward'}</ThemedText>
-                    <ThemedText style={[{ color: colors.danger }, styles.amountText]}>-{r.coinsSpent}</ThemedText>
+                    <ThemedText style={styles.reason}>{r.optionTitle || r.description || 'Redeemed reward'}</ThemedText>
+                    <ThemedText style={[{ color: colors.danger }, styles.amountText]}>-{r.coinsSpent ?? r.coinsEarned ?? 0}</ThemedText>
                   </View>
                 ))
               )}
@@ -313,6 +318,7 @@ export default function RewardsScreen() {
         </View>
       </Modal>
     </ThemedView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -320,11 +326,11 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   coinCard: {
     borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg,
-    alignItems: 'center', marginBottom: Spacing.md,
+    alignItems: 'center', marginBottom: Spacing.lg, overflow: 'visible',
   },
   coinIconCircle: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  coinLabel: { fontSize: 13 },
-  coinValue: { fontSize: 38, fontWeight: '800', marginTop: 2 },
+  coinLabel: { fontSize: 13, fontWeight: '600' },
+  coinValue: { fontSize: 42, lineHeight: 52, fontWeight: 'bold', marginTop: 4, letterSpacing: 0.5 },
   historyTitle: { marginBottom: 10, fontSize: 16 },
   historyRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -338,7 +344,7 @@ const styles = StyleSheet.create({
   emptyIconCircle: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   tabRow: { flexDirection: 'row', gap: 8, marginBottom: Spacing.md },
   tabChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 16, borderRadius: Radius.full, borderWidth: 1 },
-  groupRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.md },
+  groupRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.lg },
   groupChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: Radius.full, borderWidth: 1, marginRight: 8 },
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 9, paddingHorizontal: 14, borderRadius: Radius.md },
   addBtnText: { color: '#0A0A0A', fontWeight: '700', fontSize: 13 },
@@ -347,12 +353,14 @@ const styles = StyleSheet.create({
     padding: Spacing.md, borderRadius: Radius.lg, borderWidth: 1, marginBottom: Spacing.sm,
   },
   optIconCircle: { width: 46, height: 46, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
-  optTitle: { fontSize: 15, fontWeight: '700' },
-  optDesc: { fontSize: 12, marginTop: 2, marginBottom: 8 },
-  costPill: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', borderWidth: 1, borderRadius: Radius.full, paddingVertical: 3, paddingHorizontal: 8 },
+  optHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  optTitle: { fontSize: 15, fontWeight: '700', flex: 1 },
+  optDesc: { fontSize: 12, marginTop: 2, marginBottom: 10 },
+  costPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: Radius.full, paddingVertical: 3, paddingHorizontal: 8 },
   costPillText: { fontSize: 12, fontWeight: '800' },
+  optFooterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   redeemBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 16, borderRadius: Radius.md },
-  deleteLink: { fontSize: 12, fontWeight: '600' },
+  deleteIconBtn: { padding: 6 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },
   modalBox: { borderRadius: Radius.lg, borderWidth: 1, padding: 20, maxHeight: '85%' },
   label: { fontSize: 12, fontWeight: '700', marginTop: 12, marginBottom: 6 },

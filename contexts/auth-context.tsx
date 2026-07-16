@@ -18,6 +18,7 @@ type QuestHiveUser = {
     coins?: number;
     avatarColor?: string;
     role?: string;
+    inviteCode?: string;
     [key: string]: any;
 };
 
@@ -31,12 +32,13 @@ type AuthContextType = {
         username: string;
         email: string;
         password: string;
-        inviteToken: string;
+        code: string;
     }) => Promise<{ email: string }>;
     verifyEmail: (email: string, otp: string) => Promise<void>;
     resendOtp: (email: string) => Promise<void>;
     logout: () => Promise<void>;
     updateUser: (patch: Partial<QuestHiveUser>) => Promise<void>;
+    refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -91,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         username: string;
         email: string;
         password: string;
-        inviteToken: string;
+        code: string;
     }) => {
         // Invite-only accounts are verified=true immediately on the backend —
         // no OTP step for this flow. User goes straight to login after this.
@@ -127,6 +129,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return next;
         });
     };
+    const refreshUser = async () => {
+        try {
+            const res = await api.getMe();
+            const freshUser = res.data.user;
+            setUser(freshUser);
+            await AsyncStorage.setItem(USER_KEY, JSON.stringify(freshUser));
+        } catch (e) {
+            console.warn('Failed to refresh user', e);
+        }
+    };
 
     return (
         <AuthContext.Provider
@@ -140,6 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 resendOtp,
                 logout,
                 updateUser,
+                refreshUser,
             }}>
             {children}
         </AuthContext.Provider>

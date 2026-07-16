@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 
 import { router } from 'expo-router';
 import { FormInput } from '@/components/form-input';
@@ -7,6 +7,7 @@ import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, Spacing, Radius } from '@/constants/theme';
+import { useDialog } from '@/contexts/dialog-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { createGroup } from '@/lib/api';
 
@@ -16,6 +17,7 @@ export default function CreateGroupScreen() {
   const scheme = useColorScheme() ?? 'dark';
   const C = Colors[scheme];
   const styles = makeStyles(C);
+  const dialog = useDialog();
 
   const [template, setTemplate] = useState('Blank');
   const [name, setName] = useState('');
@@ -24,7 +26,7 @@ export default function CreateGroupScreen() {
 
   const handleCreate = async () => {
     if (!name.trim()) {
-      Alert.alert('Missing name', 'Please enter a group name.');
+      dialog.alert('Missing name', 'Please enter a group name.');
       return;
     }
     setLoading(true);
@@ -32,7 +34,7 @@ export default function CreateGroupScreen() {
       await createGroup({ name: name.trim(), description: description.trim(), template });
       router.replace({ pathname: '/(tabs)/groups', params: { created: '1' } });
     } catch (e: any) {
-      Alert.alert('Failed', e?.response?.data?.message || 'Could not create group.');
+      dialog.alert('Failed', e?.response?.data?.message || 'Could not create group.');
     } finally {
       setLoading(false);
     }

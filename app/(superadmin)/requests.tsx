@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, RefreshControl, StyleSheet, TouchableOpacity } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, TouchableOpacity } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useDialog } from '@/contexts/dialog-context';
 import { getAllSuperAdminRequests, approveAdminRequest, rejectAdminRequest } from '@/lib/api';
 
 type AdminRequest = { id: string; fullName: string; email: string; reason: string };
@@ -11,6 +12,7 @@ export default function RequestsScreen() {
   const [pending, setPending] = useState<AdminRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const dialog = useDialog();
 
   const loadPending = useCallback(async () => {
     try {
@@ -32,7 +34,7 @@ export default function RequestsScreen() {
       else await rejectAdminRequest(requestId);
       setPending((prev) => prev.filter((r) => r.id !== requestId));
     } catch {
-      Alert.alert('Action failed', 'Could not process this request. Try again.');
+      dialog.alert('Action failed', 'Could not process this request. Try again.');
     }
   };
 

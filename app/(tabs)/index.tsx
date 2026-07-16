@@ -168,8 +168,8 @@ export default function DashboardScreen() {
 
         <View style={styles.headerRow}>
           <View style={{ flex: 1, marginRight: Spacing.sm }}>
-            <ThemedText style={styles.welcome} numberOfLines={1}>
-              Welcome back, <ThemedText style={[styles.welcomeName, { color: colors.tint }]}>{(user?.fullName ?? 'there').split(' ')[0]}</ThemedText>
+            <ThemedText style={[styles.welcome, styles.welcomeName, { color: colors.tint }]} numberOfLines={1}>
+              {(user?.fullName ?? 'there').split(' ')[0]}
             </ThemedText>
             <ThemedText style={[styles.date, { color: colors.textMuted }]}>{todayLabel()}</ThemedText>
           </View>
@@ -273,7 +273,7 @@ export default function DashboardScreen() {
                     {t.dueDate ? ` · ${new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
                   </ThemedText>
                 </View>
-                <ThemedText style={[styles.taskCoin, { color: colors.coin }]}>+{t.coins}</ThemedText>
+                <ThemedText style={[styles.taskCoin, { color: colors.coin }]}>{t.status === 'COMPLETED' ? '=' : '+'}{t.coins}</ThemedText>
               </View>
             );
           })}

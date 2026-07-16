@@ -22,6 +22,9 @@ const MAPPING = {
   'person.3.fill': 'groups',
   'chart.bar.fill': 'bar-chart',
   'bubble.left.fill': 'feedback',
+  'checklist': 'checklist',
+  'star.fill': 'star',
+  'person.fill': 'person',
 } as IconMapping;
 
 /**

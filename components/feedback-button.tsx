@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Modal, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -11,7 +10,6 @@ type FeedbackType = 'BUG' | 'SUGGESTION';
 export function FeedbackButton() {
   const scheme = useColorScheme() ?? 'dark';
   const C = Colors[scheme];
-  const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<FeedbackType>('BUG');
   const [message, setMessage] = useState('');
@@ -39,10 +37,17 @@ export function FeedbackButton() {
     <>
       <TouchableOpacity
         onPress={() => setOpen(true)}
-        style={[styles.fab, { backgroundColor: C.tint, bottom: insets.bottom + 72 }]}
-        activeOpacity={0.85}
+        style={[styles.row, { backgroundColor: C.card, borderColor: C.border }]}
+        activeOpacity={0.7}
       >
-        <ThemedText style={styles.fabText}>💬 Feedback</ThemedText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <ThemedText style={{ fontSize: 18 }}>💬</ThemedText>
+          <View>
+            <ThemedText style={{ fontWeight: '700', fontSize: 13 }}>Send Feedback</ThemedText>
+            <ThemedText style={{ color: C.textMuted, fontSize: 12, marginTop: 2 }}>Report a bug or suggest an idea</ThemedText>
+          </View>
+        </View>
+        <ThemedText style={{ color: C.textMuted, fontSize: 18 }}>›</ThemedText>
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={close}>
@@ -107,12 +112,10 @@ export function FeedbackButton() {
 }
 
 const styles = StyleSheet.create({
-  fab: {
-    position: 'absolute', right: 20, zIndex: 999,
-    paddingVertical: 10, paddingHorizontal: 18, borderRadius: Radius.full,
-    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 6,
+  row: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderWidth: 1, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16,
   },
-  fabText: { color: '#000', fontWeight: '700', fontSize: 13 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, borderWidth: 1, padding: Spacing.lg, paddingBottom: 36 },
   typeRow: { flexDirection: 'row', gap: 8 },

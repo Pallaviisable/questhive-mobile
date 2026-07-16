@@ -1,63 +1,35 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Link, router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Link, router } from 'expo-router';
+import { useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 
 import { FormInput } from '@/components/form-input';
 import { PasswordInput } from '@/components/password-input';
 import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { validateInvite } from '@/lib/api';
-
-type InviteData = {
-  email: string;
-  groupName?: string;
-};
 
 export default function RegisterScreen() {
   const scheme = useColorScheme() ?? 'light';
   const colors = Colors[scheme];
   const { register } = useAuth();
-  const { token } = useLocalSearchParams<{ token?: string }>();
-
-  const [invite, setInvite] = useState<InviteData | null>(null);
-  const [validating, setValidating] = useState(true);
-  const [inviteError, setInviteError] = useState('');
 
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!token) {
-      setInviteError('No invite token found. You need an invite link to register on QuestHive.');
-      setValidating(false);
-      return;
-    }
-    validateInvite(token)
-      .then((res: any) => {
-        if (res.data?.alreadyRegistered) {
-          router.replace('/(auth)/login');
-          return;
-        }
-        setInvite(res.data);
-        setValidating(false);
-      })
-      .catch((e: any) => {
-        setInviteError(e?.response?.data?.message || 'This invite link is invalid or has expired.');
-        setValidating(false);
-      });
-  }, [token]);
-
   const handleRegister = async () => {
-    if (!name.trim() || !username.trim() || !password) {
+    if (!name.trim() || !username.trim() || !email.trim() || !code.trim() || !password) {
       setError('Fill in all fields.');
       return;
     }
@@ -76,9 +48,9 @@ export default function RegisterScreen() {
       await register({
         fullName: name.trim(),
         username: username.trim(),
-        email: invite!.email,
+        email: email.trim().toLowerCase(),
         password,
-        inviteToken: token!,
+        code: code.trim(),
       });
       router.replace('/(auth)/login');
     } catch (e: any) {
@@ -88,71 +60,62 @@ export default function RegisterScreen() {
     }
   };
 
-  if (validating) {
-    return (
-      <ThemedView style={[styles.container, styles.centerAll]}>
-        <ActivityIndicator color={colors.tint} size="large" />
-        <ThemedText style={{ marginTop: 12, color: colors.tint }}>Validating your invite...</ThemedText>
-      </ThemedView>
-    );
-  }
-
-  if (inviteError) {
-    return (
-      <ThemedView style={[styles.container, styles.centerAll]}>
-        <ThemedText style={{ fontSize: 40, marginBottom: 8 }}>🐝</ThemedText>
-        <ThemedText type="title" style={{ marginBottom: 16, textAlign: 'center' }}>Invalid Invite</ThemedText>
-        <View style={[styles.errorBox, { borderColor: '#ef4444' }]}>
-          <ThemedText style={{ color: '#ef4444', fontSize: 14, textAlign: 'center' }}>{inviteError}</ThemedText>
-        </View>
-        <ThemedText style={{ opacity: 0.7, fontSize: 13, marginBottom: 16, textAlign: 'center' }}>
-          You need a valid invite link to create an account.
-        </ThemedText>
-        <Link href="/(auth)/login">
-          <ThemedText style={{ color: colors.tint, fontSize: 14 }}>← Back to Login</ThemedText>
-        </Link>
-      </ThemedView>
-    );
-  }
-
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         <ThemedView style={styles.container}>
-          <View style={{ alignItems: 'center', marginBottom: 24 }}>
-            <ThemedText style={{ fontSize: 40, marginBottom: 8 }}>🐝</ThemedText>
+          <ThemeToggle style={styles.toggle} />
+
+          <Animated.View entering={FadeInDown.duration(450).springify()} style={styles.brandRow}>
+            <View style={[styles.logoBox, { backgroundColor: colors.tint }]}>
+              <Ionicons name="layers" size={20} color="#151718" />
+            </View>
+            <ThemedText type="defaultSemiBold" style={styles.brandName}>QuestHive</ThemedText>
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.duration(450).delay(80).springify()}>
             <ThemedText type="title" style={styles.title}>Join the Hive</ThemedText>
-            {!!invite?.groupName && (
-              <ThemedText style={{ opacity: 0.7, fontSize: 13, marginTop: 4 }}>
-                Joining <ThemedText style={{ color: colors.tint, fontWeight: '700' }}>{invite.groupName}</ThemedText>
-              </ThemedText>
-            )}
-          </View>
+            <ThemedText style={styles.subtitle}>
+              Already have an account?{' '}
+              <Link href="/(auth)/login">
+                <ThemedText style={{ color: colors.tint, fontWeight: '600' }}>Log in</ThemedText>
+              </Link>
+            </ThemedText>
+            <ThemedText style={[styles.helper, { color: colors.muted }]}>
+              Ask an existing member for a personal invite code, or use the group code they sent you.
+            </ThemedText>
+          </Animated.View>
 
-          <ThemedText style={[styles.label, { color: colors.muted }]}>
-            Email <ThemedText style={{ opacity: 0.5, fontSize: 11 }}>(from your invite)</ThemedText>
-          </ThemedText>
-          <View style={[styles.readonlyField, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <ThemedText style={{ opacity: 0.6 }}>{invite?.email}</ThemedText>
-          </View>
+          <Animated.View entering={FadeInUp.duration(450).delay(160).springify()}>
+            <FormInput label="Full Name" placeholder="Your full name" value={name} onChangeText={setName} />
+            <FormInput label="Username" placeholder="Choose a username" value={username} onChangeText={setUsername} />
+            <FormInput
+              label="Email address"
+              placeholder="you@example.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={email}
+              onChangeText={setEmail}
+            />
+            <FormInput
+              label="Invite code"
+              placeholder="e.g. QH-123456"
+              autoCapitalize="none"
+              value={code}
+              onChangeText={setCode}
+            />
+            <PasswordInput label="Password" placeholder="••••••••" value={password} onChangeText={setPassword} />
+            <PasswordInput label="Confirm password" placeholder="••••••••" value={confirmPassword} onChangeText={setConfirmPassword} />
 
-          <FormInput label="Full Name" placeholder="Your full name" value={name} onChangeText={setName} />
-          <FormInput label="Username" placeholder="Choose a username" value={username} onChangeText={setUsername} />
-          <PasswordInput label="Password" placeholder="••••••••" value={password} onChangeText={setPassword} />
-          <PasswordInput label="Confirm password" placeholder="••••••••" value={confirmPassword} onChangeText={setConfirmPassword} />
+            {!!error && <ThemedText style={styles.error}>{error}</ThemedText>}
 
-          {!!error && <ThemedText style={styles.error}>{error}</ThemedText>}
-
-          <PrimaryButton
-            title="🐝 Create Account"
-            loading={loading}
-            onPress={handleRegister}
-            style={styles.submitBtn}
-          />
-
-          <Link href="/(auth)/login" style={styles.linkWrap}>
-            <ThemedText type="link" style={styles.linkText}>Already have an account? Log in</ThemedText>
-          </Link>
+            <PrimaryButton
+              title="🐝 Create Account"
+              loading={loading}
+              onPress={handleRegister}
+              style={styles.submitBtn}
+            />
+          </Animated.View>
         </ThemedView>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -160,27 +123,14 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
-  centerAll: { alignItems: 'center' },
-  title: { textAlign: 'center', marginBottom: 6 },
-  label: { fontSize: 13, fontWeight: '600', marginBottom: 6 },
-  readonlyField: {
-    borderWidth: 1.5,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 16,
-  },
-  errorBox: {
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 16,
-    backgroundColor: 'rgba(239,68,68,0.1)',
-    width: '100%',
-  },
+  container: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 40 },
+  toggle: { position: 'absolute', top: 16, right: 20 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 28, gap: 10 },
+  logoBox: { width: 34, height: 34, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  brandName: { fontSize: 18 },
+  title: { marginBottom: 6, fontSize: 28 },
+  subtitle: { marginBottom: 8, opacity: 0.85 },
+  helper: { fontSize: 12, marginBottom: 22, opacity: 0.8 },
   error: { color: '#DC2626', marginBottom: 12, textAlign: 'center' },
   submitBtn: { marginTop: 6 },
-  linkWrap: { marginTop: 20, alignItems: 'center' },
-  linkText: { textAlign: 'center' },
 });

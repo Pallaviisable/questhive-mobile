@@ -48,7 +48,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         <ThemedView style={styles.container}>
           <ThemeToggle style={styles.toggle} />
@@ -64,8 +64,8 @@ export default function LoginScreen() {
             <ThemedText type="title" style={styles.title}>Sign in</ThemedText>
             <ThemedText style={styles.subtitle}>
               No account?{' '}
-              <Link href="/(auth)/request-access">
-                <ThemedText style={{ color: colors.tint, fontWeight: '600' }}>Request access</ThemedText>
+              <Link href="/(auth)/register">
+                <ThemedText style={{ color: colors.tint, fontWeight: '600' }}>Sign Up</ThemedText>
               </Link>
             </ThemedText>
           </Animated.View>

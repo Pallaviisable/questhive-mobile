@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { ScrollView, View, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ScrollView, View, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Share, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -10,6 +11,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { Colors, Spacing, Radius } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { updateProfile, deleteAccount, requestEmailChange, confirmEmailChange, getMyCoins, getMyXP } from '@/lib/api';
+import { FeedbackButton } from '@/components/feedback-button';
+import { useDialog } from '@/contexts/dialog-context';
 
 const FRAME_CONFIG: Record<string, { color: string; label: string }> = {
   LEGENDARY: { color: '#f5c518', label: 'Legendary' },
@@ -45,7 +48,13 @@ export default function ProfileScreen() {
   const scheme = useColorScheme() ?? 'dark';
   const C = Colors[scheme];
   const insets = useSafeAreaInsets();
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
+  useFocusEffect(
+    useCallback(() => {
+      refreshUser();
+    }, [])
+  );
+  const dialog = useDialog();
   const [activeTab, setActiveTab] = useState<TabKey>('PROFILE');
   const [coins, setCoins] = useState(user?.coins || 0);
   const [xp, setXp] = useState<any>(null);
@@ -143,6 +152,7 @@ export default function ProfileScreen() {
   const styles = makeStyles(C);
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <ThemedView style={styles.container}>
       <ScrollView contentContainerStyle={{ padding: Spacing.md, paddingTop: insets.top + Spacing.sm, paddingBottom: 60 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
@@ -248,6 +258,24 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.card}>
+              <ThemedText style={{ fontWeight: '700', fontSize: 14, marginBottom: 4 }}>Your Invite Code</ThemedText>
+              <ThemedText style={{ color: C.textMuted, fontSize: 12, marginBottom: 14 }}>
+                Share this so someone can join as a Family Admin.
+              </ThemedText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ flex: 1, backgroundColor: C.backgroundElevated2, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14 }}>
+                  <ThemedText style={{ fontSize: 16, fontWeight: '700', letterSpacing: 1 }}>{user?.inviteCode || '—'}</ThemedText>
+                </View>
+                <TouchableOpacity
+                  disabled={!user?.inviteCode}
+                  onPress={() => Share.share({ message: `Join me on QuestHive! Use my invite code ${user?.inviteCode} to sign up as a Family Admin.` })}
+                  style={styles.secondaryBtn}
+                >
+                  <Ionicons name="share-outline" size={16} color={C.tint} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View style={styles.card}>
               <ThemedText style={{ fontWeight: '700', fontSize: 14, marginBottom: 4 }}>Change Email</ThemedText>
               <ThemedText style={{ color: C.textMuted, fontSize: 12, marginBottom: 14 }}>Current: {user?.email}</ThemedText>
               {emailStep === 'IDLE' ? (
@@ -315,6 +343,7 @@ export default function ProfileScreen() {
                 Having an issue? Reach out at <ThemedText style={{ color: C.tint }}>pallavisable505@gmail.com</ThemedText>. We typically respond within 24 hours.
               </ThemedText>
             </View>
+            <FeedbackButton />
           </View>
         )}
 
@@ -347,13 +376,14 @@ export default function ProfileScreen() {
         )}
 
         <TouchableOpacity
-          onPress={() => Alert.alert('Log Out', 'Are you sure you want to log out?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Log Out', style: 'destructive', onPress: logout }])}
+          onPress={() => dialog.alert('Log Out', 'Are you sure you want to log out?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Log Out', style: 'destructive', onPress: logout }])}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 24, paddingVertical: 12 }}>
           <Ionicons name="log-out-outline" size={16} color={C.danger} />
           <ThemedText style={{ color: C.danger, fontWeight: '700', fontSize: 14 }}>Log Out</ThemedText>
         </TouchableOpacity>
       </ScrollView>
     </ThemedView>
+    </KeyboardAvoidingView>
   );
 }
 
