@@ -245,43 +245,23 @@ export default function RewardsScreen() {
         </>
       ) : (
         <FlatList
-          data={history}
-          keyExtractor={(item) => item.id}
+          data={redeemHistory}
+          keyExtractor={(item, i) => item.id ?? `redeem-${i}`}
           contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: Spacing.xl }}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={colors.tint} />
+            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); loadRedeemData(); }} tintColor={colors.tint} />
           }
-          renderItem={({ item }) => (
+          renderItem={({ item: r }) => (
             <View style={[styles.historyRow, { borderBottomColor: colors.border }]}>
-              <View style={[styles.historyIconCircle, { backgroundColor: item.amount >= 0 ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)' }]}>
-                <Ionicons name={item.amount >= 0 ? 'arrow-up-outline' : 'arrow-down-outline'} size={14} color={item.amount >= 0 ? colors.success : colors.danger} />
+              <View style={[styles.historyIconCircle, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+                <Ionicons name="gift-outline" size={14} color={colors.danger} />
               </View>
-              <ThemedText style={styles.reason}>{item.reason}</ThemedText>
-              <ThemedText style={[item.amount >= 0 ? { color: colors.success } : { color: colors.danger }, styles.amountText]}>
-                {item.amount >= 0 ? '+' : ''}{item.amount}
-              </ThemedText>
+              <ThemedText style={styles.reason}>{r.optionTitle || r.description || 'Redeemed reward'}</ThemedText>
+              <ThemedText style={[{ color: colors.danger }, styles.amountText]}>-{r.coinsSpent ?? r.coinsEarned ?? 0}</ThemedText>
             </View>
           )}
-          ListHeaderComponent={<ThemedText type="title" style={styles.historyTitle}>Earned History</ThemedText>}
-          ListFooterComponent={
-            <View style={{ marginTop: 24 }}>
-              <ThemedText type="title" style={styles.historyTitle}>Redemption History</ThemedText>
-              {redeemHistory.length === 0 ? (
-                <ThemedText style={[styles.empty, { color: colors.textMuted }]}>No redemptions yet</ThemedText>
-              ) : (
-                redeemHistory.map((r, i) => (
-                  <View key={r.id ?? `redeem-${i}`} style={[styles.historyRow, { borderBottomColor: colors.border }]}>
-                    <View style={[styles.historyIconCircle, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
-                      <Ionicons name="gift-outline" size={14} color={colors.danger} />
-                    </View>
-                    <ThemedText style={styles.reason}>{r.optionTitle || r.description || 'Redeemed reward'}</ThemedText>
-                    <ThemedText style={[{ color: colors.danger }, styles.amountText]}>-{r.coinsSpent ?? r.coinsEarned ?? 0}</ThemedText>
-                  </View>
-                ))
-              )}
-            </View>
-          }
-          ListEmptyComponent={!loading ? <ThemedText style={[styles.empty, { color: colors.textMuted }]}>No coin history yet</ThemedText> : null}
+          ListHeaderComponent={<ThemedText type="title" style={styles.historyTitle}>Redemption History</ThemedText>}
+          ListEmptyComponent={!loading ? <ThemedText style={[styles.empty, { color: colors.textMuted }]}>No redemptions yet</ThemedText> : null}
         />
       )}
 

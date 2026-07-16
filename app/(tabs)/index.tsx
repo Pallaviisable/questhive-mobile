@@ -273,7 +273,7 @@ export default function DashboardScreen() {
                     {t.dueDate ? ` · ${new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
                   </ThemedText>
                 </View>
-                <ThemedText style={[styles.taskCoin, { color: colors.coin }]}>{t.status === 'COMPLETED' ? '=' : '+'}{t.coins}</ThemedText>
+                <ThemedText style={[styles.taskCoin, { color: colors.coin }]}>{t.status === 'COMPLETED' ? '' : '+'}{t.coins}</ThemedText>
               </View>
             );
           })}

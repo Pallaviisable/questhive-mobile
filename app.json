@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "questhive-mobile",
+    "name": "QuestHive",
     "slug": "questhive-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,13 +13,12 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#0f0f0f"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.pallavi08.questhivemobile"
     },
     "web": {
       "output": "static",
@@ -45,6 +44,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "96df7f96-6da1-4210-a0f2-753e027d0108"
+      }
     }
   }
 }

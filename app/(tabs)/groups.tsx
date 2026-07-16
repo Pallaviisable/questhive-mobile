@@ -76,20 +76,24 @@ export default function GroupsScreen() {
   return (
     <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + Spacing.sm }]}>
-        <View>
-          <ThemedText type="title">My Groups</ThemedText>
-          <ThemedText style={[styles.subtitle, { color: colors.textMuted }]}>Manage and explore your hives</ThemedText>
-          {isSuperAdmin && (
-            <TouchableOpacity onPress={() => router.push('/(superadmin)/requests' as any)} style={styles.superAdminLink}>
-              <Ionicons name="shield-checkmark-outline" size={13} color={colors.tint} />
-              <ThemedText style={[styles.superAdminLinkText, { color: colors.tint }]}>Open Super Admin Dashboard →</ThemedText>
-            </TouchableOpacity>
-          )}
+        <ThemedText type="title">My Groups</ThemedText>
+        <ThemedText style={[styles.subtitle, { color: colors.textMuted }]}>Manage and explore your hives</ThemedText>
+        {isSuperAdmin && (
+          <TouchableOpacity onPress={() => router.push('/(superadmin)/requests' as any)} style={styles.superAdminLink}>
+            <Ionicons name="shield-checkmark-outline" size={13} color={colors.tint} />
+            <ThemedText style={[styles.superAdminLinkText, { color: colors.tint }]}>Open Super Admin Dashboard →</ThemedText>
+          </TouchableOpacity>
+        )}
+        <View style={styles.headerBtnRow}>
+          <TouchableOpacity style={[styles.joinBtn, { borderColor: colors.tint, flex: 1 }]} onPress={() => router.push('/groups/join')} activeOpacity={0.85}>
+            <Ionicons name="key-outline" size={15} color={colors.tint} />
+            <ThemedText style={[styles.joinBtnText, { color: colors.tint }]}>Join</ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.createBtn, { backgroundColor: colors.tint, flex: 1 }]} onPress={() => router.push('/groups/create')} activeOpacity={0.85}>
+            <Ionicons name="add" size={16} color="#0A0A0A" />
+            <ThemedText style={styles.createBtnText}>Create</ThemedText>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={[styles.createBtn, { backgroundColor: colors.tint }]} onPress={() => router.push('/groups/create')} activeOpacity={0.85}>
-          <Ionicons name="add" size={16} color="#0A0A0A" />
-          <ThemedText style={styles.createBtnText}>Create</ThemedText>
-        </TouchableOpacity>
       </View>
 
       {successMsg ? (
@@ -196,10 +200,13 @@ export default function GroupsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: Spacing.md },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.md },
+  header: { marginBottom: Spacing.md },
   subtitle: { fontSize: 13, marginTop: 2 },
   superAdminLink: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10 },
   superAdminLinkText: { fontSize: 13, fontWeight: '600' },
+  headerBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: Spacing.md },
+  joinBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 9, paddingHorizontal: 12, borderRadius: Radius.md, borderWidth: 1.5 },
+  joinBtnText: { fontWeight: '700', fontSize: 13 },
   createBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 9, paddingHorizontal: 14, borderRadius: Radius.md },
   createBtnText: { color: '#0A0A0A', fontWeight: '700', fontSize: 13 },
   successBox: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: Radius.md, padding: 10, marginBottom: Spacing.sm },
